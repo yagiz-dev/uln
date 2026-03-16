@@ -6,12 +6,17 @@
   "bin": {
     "uln": "dist/index.js"
   },
+  "files": [
+    "dist",
+    "LICENSE",
+    "README.md"
+  ],
   "engines": {
     "node": ">=20"
   },
   "scripts": {
     "dev": "tsx src/cli/index.ts",
-    "build": "tsup src/cli/index.ts --format esm --dts --clean",
+    "build": "tsup src/cli/index.ts --format esm --dts --clean && cp LICENSE dist/LICENSE",
     "test": "vitest run",
     "test:watch": "vitest",
     "lint": "eslint .",
@@ -24,6 +29,7 @@
     "compliance",
     "cli"
   ],
+  "license": "MIT",
   "dependencies": {
     "commander": "^13.1.0",
     "zod": "^3.24.2"

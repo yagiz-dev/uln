@@ -1,10 +1,10 @@
-# Universal License Notice (`uln`)
+# Universal License Notice
 
 Universal License Notice (`uln`) is a CLI for discovering package manager manifests and generating third-party license notice output from package metadata.
 
-Its main purpose is supporting multiple package managers, saving you from having to use different tools for different package managers.
+Its goal is to provide one tool for generating license notices across multiple package managers, saving you from having to use different tools for each manager.
 
-Initially only supporting [npm](https://npmjs.com), support for additional package ecosystems can be added over time.
+The first supported package manager is [npm](https://npmjs.com), with additional adapters planned over time.
 
 ## Status
 
@@ -12,7 +12,7 @@ This project is currently experimental.
 
 - Supported package managers:
   - `npm`
-- Planned but not yet supported:
+- Detected by `uln` but not yet supported:
   - `composer`
   - `pypi`
 
@@ -26,12 +26,12 @@ This tool is best-effort and is not legal advice.
 
 ## Install
 
-`uln` requires Node.js 20 or newer. The package will be uploaded to npm very soon. Until then, please proceed with local development installation:
+`uln` requires Node.js 20 or newer. Until the first npm release is published, use the local development workflow below:
 
 ```bash
 npm run build
 node dist/index.js --help
-uln --help
+npm link # If you want to directly call the binary as `uln`
 ```
 
 ## Commands
@@ -66,10 +66,9 @@ Generates third-party notice output for supported package managers in the curren
 uln generate
 ```
 
-By default this writes:
-
-- `THIRD_PARTY_NOTICES.txt` for text output
-- `NOTICE.json` for JSON output
+- Text output defaults to `THIRD_PARTY_NOTICES.txt`
+- JSON output defaults to `NOTICE.json`
+- If you do not specify a format, text output is used by default.
 
 Examples:
 
@@ -142,3 +141,7 @@ Planned next steps:
 - PyPI adapter
 - monorepo and manually provided manifest-path support
 - better output summaries and integration tests
+
+## License
+
+MIT

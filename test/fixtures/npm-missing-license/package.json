@@ -1,0 +1,7 @@
+{
+  "name": "npm-missing-license",
+  "version": "1.0.0",
+  "dependencies": {
+    "mystery-package": "2.0.0"
+  }
+}

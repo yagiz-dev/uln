@@ -1,0 +1,15 @@
+import type { NormalizedDependency, Warning } from "../types/dependency.js";
+
+export function sortDependencies(dependencies: NormalizedDependency[]): NormalizedDependency[] {
+  return [...dependencies].sort((left, right) => {
+    if (left.name !== right.name) {
+      return left.name.localeCompare(right.name);
+    }
+
+    return left.version.localeCompare(right.version);
+  });
+}
+
+export function sortWarnings(warnings: Warning[]): Warning[] {
+  return [...warnings].sort((left, right) => left.message.localeCompare(right.message));
+}

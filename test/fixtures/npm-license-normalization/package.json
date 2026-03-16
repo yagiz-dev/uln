@@ -1,0 +1,8 @@
+{
+  "name": "npm-license-normalization",
+  "version": "1.0.0",
+  "dependencies": {
+    "apache-style": "1.0.0",
+    "file-ref": "2.0.0"
+  }
+}

@@ -29,6 +29,14 @@
     "compliance",
     "cli"
   ],
+  "homepage": "https://yagiz.dev",
+  "repository": {
+    "type": "git",
+    "url": "git+https://github.com/yagiz-dev/uln.git"
+  },
+  "bugs": {
+    "url": "https://github.com/yagiz-dev/uln/issues"
+  },
   "license": "MIT",
   "dependencies": {
     "commander": "^13.1.0",

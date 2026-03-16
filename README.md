@@ -8,7 +8,7 @@ The first supported package manager is [npm](https://npmjs.com), with additional
 
 ## Status
 
-This project is currently experimental.
+The project is currently experimental, but available on npm for early use and feedback.
 
 - Supported package managers:
   - `npm`
@@ -26,9 +26,19 @@ This tool is best-effort and is not legal advice.
 
 ## Install
 
-`uln` requires Node.js 20 or newer. Until the first npm release is published, use the local development workflow below:
+`uln` requires Node.js 20 or newer.
+
+Install from npm:
 
 ```bash
+npm install -g uln
+uln --help
+```
+
+For local development:
+
+```bash
+npm install
 npm run build
 node dist/index.js --help
 npm link # If you want to directly call the binary as `uln`

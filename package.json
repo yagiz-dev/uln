@@ -1,7 +1,7 @@
 {
-  "name": "uln",
+  "name": "universal-license-notice",
   "version": "0.1.0",
-  "description": "uln (Universal License Notice) Generates third-party license notices from package manager metadata.",
+  "description": "Universal License Notice (uln) generates third-party license notices from package manager metadata.",
   "type": "module",
   "bin": {
     "uln": "dist/index.js"
@@ -32,10 +32,10 @@
   "homepage": "https://yagiz.dev",
   "repository": {
     "type": "git",
-    "url": "git+https://github.com/yagiz-dev/uln.git"
+    "url": "git+https://github.com/yagiz-dev/universal-license-notice.git"
   },
   "bugs": {
-    "url": "https://github.com/yagiz-dev/uln/issues"
+    "url": "https://github.com/yagiz-dev/universal-license-notice/issues"
   },
   "license": "MIT",
   "dependencies": {

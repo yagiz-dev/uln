@@ -31,7 +31,7 @@ This tool is best-effort and is not legal advice.
 Install from npm:
 
 ```bash
-npm install -g uln
+npm install -g universal-license-notice
 uln --help
 ```
 

@@ -7,7 +7,7 @@ import { registerScanCommand } from "./commands/scan.js";
 const program = new Command();
 
 program
-  .name("license-notice")
+  .name("uln")
   .description("Generate third-party license notices from package metadata")
   .version("0.1.0");
 

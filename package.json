@@ -4,7 +4,7 @@
   "description": "Generate third-party license notices from package manager metadata.",
   "type": "module",
   "bin": {
-    "license-notice": "dist/index.js"
+    "uln": "dist/index.js"
   },
   "engines": {
     "node": ">=20"

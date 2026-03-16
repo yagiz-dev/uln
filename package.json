@@ -1,7 +1,7 @@
 {
-  "name": "universal-license-notice",
+  "name": "uln",
   "version": "0.1.0",
-  "description": "Generate third-party license notices from package manager metadata.",
+  "description": "uln (Universal License Notice) Generates third-party license notices from package manager metadata.",
   "type": "module",
   "bin": {
     "uln": "dist/index.js"

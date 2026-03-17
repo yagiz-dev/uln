@@ -44,7 +44,9 @@ describe("renderHtml", () => {
       },
     );
 
-    expect(output).toContain("<details>");
+    expect(output).toContain('<details class="manager-section" open>');
+    expect(output).toContain("<summary>npm</summary>");
+    expect(output).toContain('<details class="dependency-section">');
     expect(output).toContain("<summary>chalk@5.4.1 (MIT)</summary>");
     expect(output).toContain("<strong>Author:</strong> Chalk Team");
     expect(output).toContain("<pre>MIT License</pre>");

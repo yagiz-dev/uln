@@ -4,7 +4,7 @@
     <meta charset="utf-8" />
     <meta name="viewport" content="width=device-width, initial-scale=1" />
     <title><%= title %></title>
-    <style>section h2,summary{padding:.875rem 1rem}body,h1,pre,section p{margin:0}pre,section h2,summary:hover{background:var(--surface)}:root{color-scheme:light;--text:#24292f;--muted:#59636e;--bg:#ffffff;--surface:#f6f8fa;--border:#d0d7de}.description,.meta{color:var(--muted)}*{box-sizing:border-box}body{font-family:-apple-system,BlinkMacSystemFont,"Segoe UI","Noto Sans",Helvetica,Arial,sans-serif;color:var(--text);background:linear-gradient(180deg,#fff 0,#f8fafc 100%)}main{max-width:960px;margin:0 auto;padding:2rem 1rem 3rem}.header{margin-bottom:1.5rem}h1{font-size:2rem;line-height:1.2}.description{margin:.5rem 0 0}.meta{margin-top:.5rem;font-size:.875rem}section{border:1px solid var(--border);border-radius:10px;background:var(--bg);margin-bottom:1rem;overflow:hidden}section h2{margin:0;border-bottom:1px solid var(--border);font-size:1rem;text-transform:uppercase;letter-spacing:.04em}section p{padding:1rem}details{border-top:1px solid var(--border)}details:first-child{border-top:0}summary{cursor:pointer;font-weight:600}.dependency-content{padding:0 1rem 1rem}ul{margin:.25rem 0 0;padding-left:1.2rem}li{margin:.35rem 0}pre{padding:.75rem;border:1px solid var(--border);border-radius:8px;white-space:pre-wrap;word-break:break-word;font-family:ui-monospace,SFMono-Regular,Menlo,Monaco,Consolas,"Liberation Mono","Courier New",monospace;font-size:.85rem}.license-block h4{margin:.75rem 0 .5rem}a{color:#0969da}</style>
+    <style>section summary{padding:.875rem 1rem}body,h1,pre,section p{margin:0}pre,section summary:hover{background:var(--surface)}:root{color-scheme:light;--text:#24292f;--muted:#59636e;--bg:#ffffff;--surface:#f6f8fa;--border:#d0d7de}.description,.meta{color:var(--muted)}*{box-sizing:border-box}body{font-family:-apple-system,BlinkMacSystemFont,"Segoe UI","Noto Sans",Helvetica,Arial,sans-serif;color:var(--text);background:linear-gradient(180deg,#fff 0,#f8fafc 100%)}main{max-width:960px;margin:0 auto;padding:2rem 1rem 3rem}.header{margin-bottom:1.5rem}h1{font-size:2rem;line-height:1.2}.description{margin:.5rem 0 0}.meta{margin-top:.5rem;font-size:.875rem}section{border:1px solid var(--border);border-radius:10px;background:var(--bg);margin-bottom:1rem;overflow:hidden}section p{padding:1rem}.manager-section{border-top:0}.manager-section>summary{margin:0;font-size:1rem;text-transform:uppercase;letter-spacing:.04em;font-weight:700}.manager-content{border-top:1px solid var(--border)}.dependency-section{border-top:1px solid var(--border)}.dependency-section:first-child{border-top:0}.dependency-section>summary{cursor:pointer;font-weight:600}.dependency-content{padding:0 1rem 1rem}ul{margin:.25rem 0 0;padding-left:1.2rem}li{margin:.35rem 0}pre{padding:.75rem;border:1px solid var(--border);border-radius:8px;white-space:pre-wrap;word-break:break-word;font-family:ui-monospace,SFMono-Regular,Menlo,Monaco,Consolas,"Liberation Mono","Courier New",monospace;font-size:.85rem}.license-block h4{margin:.75rem 0 .5rem}a{color:#0969da}</style>
   </head>
   <body>
     <main>
@@ -19,14 +19,15 @@
       <% } else { %>
         <% for (const result of results) { %>
           <section>
-            <h2><%= result.packageManager %></h2>
+            <details class="manager-section" open>
+              <summary><%= result.packageManager %></summary>
 
-            <% if (result.dependencies.length === 0) { %>
-              <p>No dependencies found.</p>
-            <% } else { %>
-              <div class="dependency-list">
-                <% for (const dependency of result.dependencies) { %>
-                  <details>
+              <% if (result.dependencies.length === 0) { %>
+                <p>No dependencies found.</p>
+              <% } else { %>
+                <div class="manager-content">
+                  <% for (const dependency of result.dependencies) { %>
+                    <details class="dependency-section">
                     <summary><%= formatDependencySummary(dependency) %></summary>
                     <div class="dependency-content">
                       <ul>
@@ -72,10 +73,11 @@
                         </div>
                       <% } %>
                     </div>
-                  </details>
-                <% } %>
-              </div>
-            <% } %>
+                    </details>
+                  <% } %>
+                </div>
+              <% } %>
+            </details>
           </section>
         <% } %>
       <% } %>

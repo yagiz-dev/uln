@@ -1,15 +1,17 @@
-import { readFile, readdir } from "node:fs/promises";
-import { isAbsolute, join, relative, resolve } from "node:path";
+import { join } from "node:path";
 import type { ResolveAdapterOptions } from "../types.js";
 import type { ScanResult, Warning } from "../../types/dependency.js";
 import { fileExists } from "../../utils/fs.js";
 import { normalizeDependency } from "../../core/normalize.js";
-import {
-  WARNING_CODES,
-  type WarningCode,
-  type WarningDetailsByCode,
-} from "../../core/warning-codes.js";
+import { WARNING_CODES } from "../../core/warning-codes.js";
 import { normalizeLicenseField } from "../../licenses/normalize.js";
+import { getBundledLicenseFromDirectory } from "../shared/license-files.js";
+import {
+  createEmptyResolvedPackageMetadata,
+  type ResolvedPackageMetadata,
+} from "../shared/metadata.js";
+import { parseJsonFileIfExists } from "../shared/read-json.js";
+import { createAdapterWarning } from "../shared/warnings.js";
 import { parsePackageJson } from "./parse-package-json.js";
 import { parsePackageLock } from "./parse-package-lock.js";
 
@@ -17,121 +19,6 @@ const DEFAULT_RESOLVE_OPTIONS: ResolveAdapterOptions = {
   includeLicenseText: true,
   includeDevDependencies: true,
 };
-
-const LICENSE_FILE_CANDIDATES = ["LICENSE", "LICENSE.txt", "LICENSE.md", "COPYING", "NOTICE"];
-const LICENSE_FILE_CANDIDATES_LOWERCASE = new Set(
-  LICENSE_FILE_CANDIDATES.map((candidate) => candidate.toLowerCase()),
-);
-
-function isLicenseFileCandidate(fileName: string): boolean {
-  const lowerName = fileName.toLowerCase();
-
-  if (LICENSE_FILE_CANDIDATES_LOWERCASE.has(lowerName)) {
-    return true;
-  }
-
-  return (
-    lowerName.startsWith("license-") ||
-    lowerName.startsWith("license.") ||
-    lowerName.startsWith("copying-") ||
-    lowerName.startsWith("copying.") ||
-    lowerName.startsWith("notice-") ||
-    lowerName.startsWith("notice.")
-  );
-}
-
-function createWarning<Code extends WarningCode>(
-  code: Code,
-  options?: {
-    packageName?: string;
-    details?: Code extends keyof WarningDetailsByCode ? WarningDetailsByCode[Code] : never;
-  },
-): Warning {
-  return {
-    code,
-    packageName: options?.packageName,
-    details: options?.details,
-  } as Warning;
-}
-
-function toSafePackagePath(packageDirectory: string, candidatePath: string): string | undefined {
-  const resolvedCandidate = resolve(packageDirectory, candidatePath);
-  const relativePath = relative(packageDirectory, resolvedCandidate);
-
-  if (relativePath.startsWith("..") || isAbsolute(relativePath)) {
-    return undefined;
-  }
-
-  return resolvedCandidate;
-}
-
-async function getBundledLicense(
-  projectRoot: string,
-  packagePath: string,
-  licenseFileHint?: string,
-): Promise<{
-  licenseText?: string;
-  licenseSourcePath?: string;
-  packageDirectoryExists: boolean;
-}> {
-  const packageDirectory = join(projectRoot, packagePath);
-
-  if (!(await fileExists(packageDirectory))) {
-    return { packageDirectoryExists: false };
-  }
-
-  const candidatePaths: string[] = [];
-
-  if (licenseFileHint) {
-    const hintedPath = toSafePackagePath(packageDirectory, licenseFileHint);
-    if (hintedPath) {
-      candidatePaths.push(hintedPath);
-    }
-  }
-
-  for (const fileName of LICENSE_FILE_CANDIDATES) {
-    candidatePaths.push(join(packageDirectory, fileName));
-    candidatePaths.push(join(packageDirectory, fileName.toLowerCase()));
-  }
-
-  const packageDirectoryEntries = await readdir(packageDirectory, {
-    withFileTypes: true,
-  }).catch(() => undefined);
-
-  if (!packageDirectoryEntries) {
-    return { packageDirectoryExists: true };
-  }
-
-  const additionalCandidates = packageDirectoryEntries
-    .filter((entry) => entry.isFile() && isLicenseFileCandidate(entry.name))
-    .map((entry) => join(packageDirectory, entry.name));
-
-  candidatePaths.push(...additionalCandidates);
-
-  const deduplicatedCandidatePaths = [...new Set(candidatePaths)];
-
-  for (const candidatePath of deduplicatedCandidatePaths) {
-    if (!(await fileExists(candidatePath))) {
-      continue;
-    }
-
-    let contents: string;
-
-    try {
-      contents = await readFile(candidatePath, "utf8");
-    } catch {
-      continue;
-    }
-
-    return {
-      licenseText: contents.replace(/\r\n/g, "\n").trimEnd(),
-      licenseSourcePath: relative(projectRoot, candidatePath),
-      packageDirectoryExists: true,
-    };
-  }
-
-  return { packageDirectoryExists: true };
-}
 
 function collectLegacyLicenseValues(parsedPackageJson: unknown): string[] {
   if (!parsedPackageJson || typeof parsedPackageJson !== "object") {
@@ -233,36 +120,11 @@ function normalizeAuthorFromPackageJson(parsedPackageJson: unknown): string | un
 async function resolveMetadataFromInstalledPackage(
   projectRoot: string,
   packagePath: string,
-): Promise<{
-  licenseExpression?: string;
-  licenseWarnings: Warning[];
-  homepage?: string;
-  repository?: string;
-  author?: string;
-}> {
+): Promise<ResolvedPackageMetadata> {
   const packageJsonPath = join(projectRoot, packagePath, "package.json");
-  if (!(await fileExists(packageJsonPath))) {
-    return {
-      licenseExpression: undefined,
-      licenseWarnings: [],
-      homepage: undefined,
-      repository: undefined,
-      author: undefined,
-    };
-  }
-
-  let parsedPackageJson: unknown;
-
-  try {
-    parsedPackageJson = JSON.parse(await readFile(packageJsonPath, "utf8"));
-  } catch {
-    return {
-      licenseExpression: undefined,
-      licenseWarnings: [],
-      homepage: undefined,
-      repository: undefined,
-      author: undefined,
-    };
+  const parsedPackageJson = await parseJsonFileIfExists(packageJsonPath);
+  if (parsedPackageJson === undefined) {
+    return createEmptyResolvedPackageMetadata();
   }
 
   const licenseValues = collectLegacyLicenseValues(parsedPackageJson);
@@ -280,8 +142,7 @@ async function resolveMetadataFromInstalledPackage(
 
   if (licenseValues.length === 0) {
     return {
-      licenseExpression: undefined,
-      licenseWarnings: [],
+      ...createEmptyResolvedPackageMetadata(),
       homepage,
       repository,
       author,
@@ -321,7 +182,7 @@ export async function resolveNpmProject(
     parsedPackageJson?.directDevDependencyNames ?? new Set<string>();
 
   if (!hasPackageLock) {
-    warnings.push(createWarning(WARNING_CODES.npmLockfileMissing));
+    warnings.push(createAdapterWarning(WARNING_CODES.npmLockfileMissing));
 
     return {
       packageManager: "npm",
@@ -337,8 +198,8 @@ export async function resolveNpmProject(
             version: "unknown",
             direct: true,
             warnings: [
-              createWarning(WARNING_CODES.npmVersionUnknown, { packageName: name }),
-              createWarning(WARNING_CODES.licenseMissing, {
+              createAdapterWarning(WARNING_CODES.npmVersionUnknown, { packageName: name }),
+              createAdapterWarning(WARNING_CODES.licenseMissing, {
                 packageName: name,
                 details: { reason: "without_lockfile" },
               }),
@@ -357,7 +218,7 @@ export async function resolveNpmProject(
 
   if (![2, 3].includes(parsedLock.lockfileVersion)) {
     warnings.push(
-      createWarning(WARNING_CODES.npmLockfileVersionUnsupported, {
+      createAdapterWarning(WARNING_CODES.npmLockfileVersionUnsupported, {
         details: { lockfileVersion: parsedLock.lockfileVersion },
       }),
     );
@@ -376,13 +237,7 @@ export async function resolveNpmProject(
         const fallbackMetadata =
           !licenseExpression || !homepage || !repository || !author
             ? await resolveMetadataFromInstalledPackage(projectRoot, pkg.packagePath)
-            : {
-                licenseExpression: undefined,
-                licenseWarnings: [],
-                homepage: undefined,
-                repository: undefined,
-                author: undefined,
-              };
+            : createEmptyResolvedPackageMetadata();
 
         if (!licenseExpression && fallbackMetadata.licenseExpression) {
           licenseExpression = fallbackMetadata.licenseExpression;
@@ -402,7 +257,7 @@ export async function resolveNpmProject(
 
         if (!licenseExpression) {
           dependencyWarnings.push(
-            createWarning(WARNING_CODES.licenseMissing, {
+            createAdapterWarning(WARNING_CODES.licenseMissing, {
               packageName: pkg.name,
               details: { reason: "missing_from_lockfile" },
             }),
@@ -418,7 +273,11 @@ export async function resolveNpmProject(
         }
 
         const bundledLicense = options.includeLicenseText
-          ? await getBundledLicense(projectRoot, pkg.packagePath, pkg.licenseFileHint)
+          ? await getBundledLicenseFromDirectory(
+              projectRoot,
+              join(projectRoot, pkg.packagePath),
+              pkg.licenseFileHint,
+            )
           : { packageDirectoryExists: false };
 
         if (
@@ -427,7 +286,7 @@ export async function resolveNpmProject(
           !bundledLicense.licenseText
         ) {
           dependencyWarnings.push(
-            createWarning(WARNING_CODES.licenseFileMissing, { packageName: pkg.name }),
+            createAdapterWarning(WARNING_CODES.licenseFileMissing, { packageName: pkg.name }),
           );
         }
 

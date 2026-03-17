@@ -4,6 +4,7 @@ import type { ResolveAdapterOptions } from "../types.js";
 import type { ScanResult, Warning } from "../../types/dependency.js";
 import { fileExists } from "../../utils/fs.js";
 import { normalizeDependency } from "../../core/normalize.js";
+import { WARNING_MESSAGES } from "../../core/warning-messages.js";
 import { parsePackageJson } from "./parse-package-json.js";
 import { parsePackageLock } from "./parse-package-lock.js";
 
@@ -89,12 +90,7 @@ export async function resolveNpmProject(
     : new Set<string>();
 
   if (!hasPackageLock) {
-    warnings.push(
-      createWarning(
-        "npm_lockfile_missing",
-        "package-lock.json is missing; results only include direct dependencies declared in package.json.",
-      ),
-    );
+    warnings.push(createWarning("npm_lockfile_missing", WARNING_MESSAGES.npmLockfileMissing));
 
     return {
       packageManager: "npm",
@@ -105,14 +101,10 @@ export async function resolveNpmProject(
           version: "unknown",
           direct: true,
           warnings: [
-            createWarning(
-              "npm_version_unknown",
-              "Dependency version is unknown without package-lock.json.",
-              name,
-            ),
+            createWarning("npm_version_unknown", WARNING_MESSAGES.npmVersionUnknown, name),
             createWarning(
               "license_missing",
-              "License metadata is unavailable without package-lock.json.",
+              WARNING_MESSAGES.licenseUnavailableWithoutLockfile,
               name,
             ),
           ],
@@ -132,7 +124,7 @@ export async function resolveNpmProject(
     warnings.push(
       createWarning(
         "npm_lockfile_version_unsupported",
-        `Unsupported package-lock.json version ${parsedLock.lockfileVersion}. Results may be incomplete.`,
+        WARNING_MESSAGES.npmLockfileVersionUnsupported(parsedLock.lockfileVersion),
       ),
     );
   }
@@ -143,15 +135,15 @@ export async function resolveNpmProject(
 
       if (!pkg.licenseExpression) {
         dependencyWarnings.push(
-          createWarning(
-            "license_missing",
-            "License metadata is missing from package-lock.json.",
-            pkg.name,
-          ),
+          createWarning("license_missing", WARNING_MESSAGES.licenseMissingFromLockfile, pkg.name),
         );
       }
 
       for (const message of pkg.licenseWarnings) {
+        if (options.includeLicenseText && message === WARNING_MESSAGES.licenseFileReference) {
+          continue;
+        }
+
         dependencyWarnings.push(createWarning("license_normalization_warning", message, pkg.name));
       }
 
@@ -165,11 +157,7 @@ export async function resolveNpmProject(
         !bundledLicense.licenseText
       ) {
         dependencyWarnings.push(
-          createWarning(
-            "license_file_missing",
-            "Could not find a local license file for this dependency.",
-            pkg.name,
-          ),
+          createWarning("license_file_missing", WARNING_MESSAGES.licenseFileMissing, pkg.name),
         );
       }
 

@@ -5,8 +5,13 @@ import { loadProjectConfig } from "../../config/load.js";
 import { resolveDependencies } from "../../core/resolve-dependencies.js";
 import { renderJson } from "../../renderers/json.js";
 import { renderText } from "../../renderers/text.js";
+import type { ScanResult } from "../../types/dependency.js";
 
 type OutputFormat = "text" | "json";
+
+const ANSI_YELLOW = "\u001b[33m";
+const ANSI_RESET = "\u001b[0m";
+const WARN_LABEL = `${ANSI_YELLOW}WARN${ANSI_RESET}`;
 
 export interface GenerateCommandOptions {
   config?: string;
@@ -38,6 +43,49 @@ export function validateGenerateCommandOptions(options: GenerateCommandOptions):
   }
 }
 
+export function collectGenerateWarnings(results: ScanResult[]): string[] {
+  const warnings: string[] = [];
+  const seen = new Set<string>();
+
+  for (const result of results) {
+    for (const warning of result.warnings) {
+      const warningTarget = warning.packageName ? `:${warning.packageName}` : "";
+      const warningLine = `${result.packageManager}${warningTarget} ${warning.message}`;
+
+      if (seen.has(warningLine)) {
+        continue;
+      }
+
+      seen.add(warningLine);
+      warnings.push(warningLine);
+    }
+
+    for (const dependency of result.dependencies) {
+      for (const warning of dependency.warnings) {
+        const warningTarget = warning.packageName ?? dependency.name;
+        const warningLine = `${result.packageManager}:${warningTarget} ${warning.message}`;
+
+        if (seen.has(warningLine)) {
+          continue;
+        }
+
+        seen.add(warningLine);
+        warnings.push(warningLine);
+      }
+    }
+  }
+
+  return warnings;
+}
+
+export function writeGenerateWarningsToConsole(results: ScanResult[]): void {
+  const warningLines = collectGenerateWarnings(results);
+
+  for (const warningLine of warningLines) {
+    process.stderr.write(`${WARN_LABEL} ${warningLine}\n`);
+  }
+}
+
 export function registerGenerateCommand(program: Command): void {
   program
     .command("generate")
@@ -60,12 +108,14 @@ export function registerGenerateCommand(program: Command): void {
 
       if (shouldWriteToStdout(options)) {
         process.stdout.write(`${output}\n`);
+        writeGenerateWarningsToConsole(results);
         return;
       }
 
       const outputPath = options.output ?? defaultOutputPath(format);
 
       await writeFile(outputPath, `${output}\n`, "utf8");
+      writeGenerateWarningsToConsole(results);
       process.stdout.write(`Wrote ${outputPath}\n`);
     });
 }

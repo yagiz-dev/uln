@@ -1,5 +1,6 @@
 import { describe, expect, it } from "vitest";
 import {
+  collectGenerateWarnings,
   shouldIncludeLicenseText,
   shouldWriteToStdout,
   validateGenerateCommandOptions,
@@ -51,5 +52,61 @@ describe("validateGenerateCommandOptions", () => {
         format: "yaml",
       }),
     ).toThrow('Unsupported output format "yaml". Use "text" or "json".');
+  });
+});
+
+describe("collectGenerateWarnings", () => {
+  it("collects package manager and dependency warnings", () => {
+    const warnings = collectGenerateWarnings([
+      {
+        packageManager: "npm",
+        warnings: [{ code: "npm_lockfile_missing", message: "package-lock.json is missing." }],
+        dependencies: [
+          {
+            packageManager: "npm",
+            name: "left-pad",
+            version: "1.3.0",
+            direct: true,
+            warnings: [{ code: "license_missing", message: "License metadata is missing." }],
+          },
+        ],
+      },
+    ]);
+
+    expect(warnings).toEqual([
+      "npm package-lock.json is missing.",
+      "npm:left-pad License metadata is missing.",
+    ]);
+  });
+
+  it("deduplicates warning lines", () => {
+    const warnings = collectGenerateWarnings([
+      {
+        packageManager: "npm",
+        warnings: [{ code: "npm_lockfile_missing", message: "package-lock.json is missing." }],
+        dependencies: [
+          {
+            packageManager: "npm",
+            name: "left-pad",
+            version: "1.3.0",
+            direct: true,
+            warnings: [
+              { code: "license_missing", message: "License metadata is missing." },
+              { code: "license_missing", message: "License metadata is missing." },
+            ],
+          },
+        ],
+      },
+      {
+        packageManager: "npm",
+        warnings: [{ code: "npm_lockfile_missing", message: "package-lock.json is missing." }],
+        dependencies: [],
+      },
+    ]);
+
+    expect(warnings).toEqual([
+      "npm package-lock.json is missing.",
+      "npm:left-pad License metadata is missing.",
+    ]);
   });
 });

@@ -1,4 +1,5 @@
 import { describe, expect, it } from "vitest";
+import { WARNING_MESSAGES } from "../../src/core/warning-messages.js";
 import { normalizeLicenseField, normalizeLicenseValue } from "../../src/licenses/normalize.js";
 
 describe("normalizeLicenseValue", () => {
@@ -12,7 +13,7 @@ describe("normalizeLicenseValue", () => {
   it("preserves file reference licenses and warns", () => {
     expect(normalizeLicenseValue("SEE LICENSE IN LICENSE.md")).toEqual({
       normalizedExpression: "SEE LICENSE IN LICENSE.md",
-      warnings: ["License uses a file reference instead of a normalized SPDX expression."],
+      warnings: [WARNING_MESSAGES.licenseFileReference],
     });
   });
 

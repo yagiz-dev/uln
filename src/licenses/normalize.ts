@@ -1,3 +1,5 @@
+import { WARNING_MESSAGES } from "../core/warning-messages.js";
+
 export interface LicenseNormalizationResult {
   normalizedExpression?: string;
   warnings: string[];
@@ -41,7 +43,10 @@ const EXACT_LICENSE_MAP = new Map<string, string>([
 ]);
 
 function cleanLicenseValue(value: string): string {
-  return value.trim().replace(/^\(+|\)+$/g, "").replace(/\s+/g, " ");
+  return value
+    .trim()
+    .replace(/^\(+|\)+$/g, "")
+    .replace(/\s+/g, " ");
 }
 
 function mapExactLicense(value: string): string | undefined {
@@ -52,13 +57,13 @@ function normalizeReferenceLicense(value: string): LicenseNormalizationResult {
   if (/^SEE LICEN[CS]E IN /i.test(value)) {
     return {
       normalizedExpression: value,
-      warnings: ["License uses a file reference instead of a normalized SPDX expression."],
+      warnings: [WARNING_MESSAGES.licenseFileReference],
     };
   }
 
   return {
     normalizedExpression: value,
-    warnings: ["License metadata could not be normalized to a known SPDX-style identifier."],
+    warnings: [WARNING_MESSAGES.licenseNotNormalized],
   };
 }
 

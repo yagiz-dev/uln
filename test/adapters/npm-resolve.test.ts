@@ -2,6 +2,7 @@ import { mkdir, mkdtemp, rm, writeFile } from "node:fs/promises";
 import { tmpdir } from "node:os";
 import { join, resolve } from "node:path";
 import { describe, expect, it } from "vitest";
+import { WARNING_MESSAGES } from "../../src/core/warning-messages.js";
 import { resolveNpmProject } from "../../src/adapters/npm/resolve.js";
 
 describe("resolveNpmProject", () => {
@@ -43,7 +44,7 @@ describe("resolveNpmProject", () => {
     ]);
   });
 
-  it("normalizes common license variants and warns on file references", async () => {
+  it("normalizes common license variants and suppresses file-reference warnings by default", async () => {
     const fixturePath = resolve("test/fixtures/npm-license-normalization");
     const result = await resolveNpmProject(fixturePath);
     const apacheStyle = result.dependencies.find(
@@ -54,9 +55,20 @@ describe("resolveNpmProject", () => {
     expect(apacheStyle?.licenseExpression).toBe("Apache-2.0");
     expect(apacheStyle?.warnings).toEqual([]);
     expect(fileRef?.licenseExpression).toBe("SEE LICENSE IN LICENSE.md");
+    expect(fileRef?.warnings).toEqual([]);
+  });
+
+  it("emits file-reference warnings when license text bundling is disabled", async () => {
+    const fixturePath = resolve("test/fixtures/npm-license-normalization");
+    const result = await resolveNpmProject(fixturePath, {
+      includeLicenseText: false,
+    });
+    const fileRef = result.dependencies.find((dependency) => dependency.name === "file-ref");
+
     expect(fileRef?.warnings).toEqual([
       expect.objectContaining({
         code: "license_normalization_warning",
+        message: WARNING_MESSAGES.licenseFileReference,
       }),
     ]);
   });

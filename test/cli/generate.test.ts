@@ -32,4 +32,12 @@ describe("validateGenerateCommandOptions", () => {
       }),
     ).toThrow("The --stdout and --output options cannot be used together.");
   });
+
+  it("rejects unsupported output formats", () => {
+    expect(() =>
+      validateGenerateCommandOptions({
+        format: "yaml",
+      }),
+    ).toThrow('Unsupported output format "yaml". Use "text" or "json".');
+  });
 });

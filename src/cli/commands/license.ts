@@ -18,7 +18,7 @@ export async function readBundledLicense(): Promise<string> {
 export function registerLicenseCommand(program: Command): void {
   program
     .command("license")
-    .description("Show licensing information for uln.")
+    .description("Show licensing information for Universal License Notice (uln).")
     .action(async () => {
       const licenseContents = await readBundledLicense();
       process.stdout.write(licenseContents);

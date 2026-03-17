@@ -6,9 +6,7 @@ import { renderScanReport } from "../../renderers/scan.js";
 export function registerScanCommand(program: Command): void {
   program
     .command("scan")
-    .description(
-      "Report supported package manifests discovered in the current project root",
-    )
+    .description("Report supported package manifests discovered in the current project root")
     .action(async () => {
       const results = await discoverManagers(cwd());
       const output = renderScanReport(results);

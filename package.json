@@ -1,6 +1,6 @@
 {
   "name": "universal-license-notice",
-  "version": "0.1.0",
+  "version": "0.1.1",
   "description": "Universal License Notice (uln) generates third-party license notices from package manager metadata.",
   "type": "module",
   "bin": {
@@ -16,7 +16,7 @@
   },
   "scripts": {
     "dev": "tsx src/cli/index.ts",
-    "build": "tsup src/cli/index.ts --format esm --dts --clean && cp LICENSE dist/LICENSE",
+    "build": "node scripts/build.mjs",
     "test": "vitest run",
     "test:watch": "vitest",
     "lint": "eslint .",

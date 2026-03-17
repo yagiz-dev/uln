@@ -88,9 +88,47 @@ uln generate --format json
 uln generate --output notices.txt
 uln generate --stdout
 uln generate --stdout --format json
+uln generate --config uln.config.json
 ```
 
 `--stdout` and `--output` cannot be used together.
+
+## Configuration
+
+If `uln.config.json` exists in the project root, `uln generate` loads it automatically.
+
+You can also point to a config file explicitly:
+
+```bash
+uln generate --config path/to/uln.config.json
+```
+
+Supported fields:
+
+```json
+{
+  "managers": {
+    "npm": {
+      "excludePackages": ["example-package", "@author/*"],
+      "packageOverrides": {
+        "chalk": {
+          "licenseExpression": "MIT",
+          "repository": "https://github.com/chalk/chalk"
+        },
+        "@scope/*": {
+          "licenseExpression": "MIT"
+        }
+      }
+    }
+  }
+}
+```
+
+- `managers.<manager>.excludePackages`: removes named packages from generated output; `*` is supported, for example `@ckeditor/*`
+- `managers.<manager>.packageOverrides.<name>.exclude`: excludes a specific package
+- `managers.<manager>.packageOverrides.<name>.licenseExpression`: replaces detected license metadata
+- `managers.<manager>.packageOverrides.<name>.homepage`, `repository`, `author`: replace detected package metadata
+- exact override keys win over wildcard keys when both match the same package
 
 ## Output
 
@@ -146,10 +184,10 @@ npm run build
 
 Planned next steps:
 
-- configuration for excludes and per-package overrides
 - Composer adapter
 - PyPI adapter
 - monorepo and manually provided manifest-path support
+- expand configuration support beyond excludes and per-package overrides
 - better output summaries and integration tests
 
 ## License

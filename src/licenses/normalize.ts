@@ -1,46 +1,13 @@
 import { WARNING_MESSAGES } from "../core/warning-messages.js";
+import spdxCorrect from "spdx-correct";
+import parseSpdxExpression from "spdx-expression-parse";
+import validateSpdxExpression from "spdx-expression-validate";
+import validateNpmPackageLicense from "validate-npm-package-license";
 
 export interface LicenseNormalizationResult {
   normalizedExpression?: string;
   warnings: string[];
 }
-
-const EXACT_LICENSE_MAP = new Map<string, string>([
-  ["MIT", "MIT"],
-  ["ISC", "ISC"],
-  ["WTFPL", "WTFPL"],
-  ["UNLICENSED", "UNLICENSED"],
-  ["APACHE-2.0", "Apache-2.0"],
-  ["APACHE 2.0", "Apache-2.0"],
-  ["APACHE LICENSE 2.0", "Apache-2.0"],
-  ["APACHE LICENSE VERSION 2.0", "Apache-2.0"],
-  ["APACHE-2", "Apache-2.0"],
-  ["BSD-2-CLAUSE", "BSD-2-Clause"],
-  ["BSD 2-CLAUSE", "BSD-2-Clause"],
-  ["BSD-3-CLAUSE", "BSD-3-Clause"],
-  ["BSD 3-CLAUSE", "BSD-3-Clause"],
-  ["MPL-2.0", "MPL-2.0"],
-  ["MPL 2.0", "MPL-2.0"],
-  ["CC-BY-4.0", "CC-BY-4.0"],
-  ["PYTHON-2.0", "Python-2.0"],
-  ["GPL-2.0", "GPL-2.0"],
-  ["GPL-2.0-ONLY", "GPL-2.0-only"],
-  ["GPL-2.0-OR-LATER", "GPL-2.0-or-later"],
-  ["GPLV2", "GPL-2.0-only"],
-  ["GPL V2", "GPL-2.0-only"],
-  ["GPL VERSION 2", "GPL-2.0-only"],
-  ["GPL-3.0", "GPL-3.0"],
-  ["GPL-3.0-ONLY", "GPL-3.0-only"],
-  ["GPL-3.0-OR-LATER", "GPL-3.0-or-later"],
-  ["GPLV3", "GPL-3.0-only"],
-  ["GPL V3", "GPL-3.0-only"],
-  ["LGPL-2.1", "LGPL-2.1"],
-  ["LGPL-2.1-ONLY", "LGPL-2.1-only"],
-  ["LGPL-2.1-OR-LATER", "LGPL-2.1-or-later"],
-  ["LGPL-3.0", "LGPL-3.0"],
-  ["LGPL-3.0-ONLY", "LGPL-3.0-only"],
-  ["LGPL-3.0-OR-LATER", "LGPL-3.0-or-later"],
-]);
 
 function cleanLicenseValue(value: string): string {
   return value
@@ -49,8 +16,50 @@ function cleanLicenseValue(value: string): string {
     .replace(/\s+/g, " ");
 }
 
-function mapExactLicense(value: string): string | undefined {
-  return EXACT_LICENSE_MAP.get(value.toUpperCase());
+function normalizeOperators(value: string): string {
+  return value.replace(/\s+or\s+/gi, " OR ").replace(/\s+and\s+/gi, " AND ");
+}
+
+function isAmbiguousHeuristicInput(value: string): boolean {
+  const normalized = value.trim().replace(/\s+/g, " ").toUpperCase();
+
+  if (["BSD", "GPL", "LGPL", "AGPL"].includes(normalized)) {
+    return true;
+  }
+
+  return (
+    /^BSD(?:[- ]?\d)?$/.test(normalized) ||
+    /^GPL(?:[- ]?V?\d(?:\.\d+)?)?$/.test(normalized) ||
+    /^LGPL(?:[- ]?V?\d(?:\.\d+)?)?$/.test(normalized) ||
+    /^AGPL(?:[- ]?V?\d(?:\.\d+)?)?$/.test(normalized)
+  );
+}
+
+function isValidSpdxExpression(value: string): boolean {
+  if (!validateSpdxExpression(value)) {
+    return false;
+  }
+
+  try {
+    parseSpdxExpression(value);
+    return true;
+  } catch {
+    return false;
+  }
+}
+
+function normalizeUsingNpmLicenseValidation(value: string): string | undefined {
+  const validationResult = validateNpmPackageLicense(value);
+
+  if (validationResult.spdx && isValidSpdxExpression(value)) {
+    return value;
+  }
+
+  if (validationResult.unlicensed) {
+    return "UNLICENSED";
+  }
+
+  return undefined;
 }
 
 function normalizeReferenceLicense(value: string): LicenseNormalizationResult {
@@ -84,11 +93,19 @@ function splitCompositeLicense(value: string): { parts: string[]; separator: str
 }
 
 export function normalizeLicenseValue(value: string): LicenseNormalizationResult {
-  const cleanedValue = cleanLicenseValue(value);
-  const exactMatch = mapExactLicense(cleanedValue);
+  const cleanedValue = normalizeOperators(cleanLicenseValue(value));
 
-  if (exactMatch) {
-    return { normalizedExpression: exactMatch, warnings: [] };
+  if (/^SEE LICEN[CS]E IN /i.test(cleanedValue)) {
+    return normalizeReferenceLicense(cleanedValue);
+  }
+
+  const npmValidatedExpression = normalizeUsingNpmLicenseValidation(cleanedValue);
+  if (npmValidatedExpression) {
+    return { normalizedExpression: npmValidatedExpression, warnings: [] };
+  }
+
+  if (isValidSpdxExpression(cleanedValue)) {
+    return { normalizedExpression: cleanedValue, warnings: [] };
   }
 
   const composite = splitCompositeLicense(cleanedValue);
@@ -102,6 +119,16 @@ export function normalizeLicenseValue(value: string): LicenseNormalizationResult
     return {
       normalizedExpression: normalizedExpression || cleanedValue,
       warnings: normalizedParts.flatMap((part) => part.warnings),
+    };
+  }
+
+  const correctedLicense = spdxCorrect(cleanedValue);
+  if (correctedLicense && isValidSpdxExpression(correctedLicense)) {
+    return {
+      normalizedExpression: correctedLicense,
+      warnings: isAmbiguousHeuristicInput(cleanedValue)
+        ? [WARNING_MESSAGES.licenseHeuristicallyNormalized(correctedLicense)]
+        : [],
     };
   }
 

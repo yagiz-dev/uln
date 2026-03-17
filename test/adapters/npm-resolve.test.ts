@@ -162,6 +162,111 @@ describe("resolveNpmProject", () => {
     }
   });
 
+  it("bundles license files that use common variant names", async () => {
+    const projectRoot = await mkdtemp(join(tmpdir(), "uln-npm-license-variants-"));
+
+    try {
+      await writeFile(
+        join(projectRoot, "package-lock.json"),
+        JSON.stringify(
+          {
+            lockfileVersion: 3,
+            packages: {
+              "": {
+                name: "fixture",
+                version: "1.0.0",
+              },
+              "node_modules/variant-license-package": {
+                version: "1.2.3",
+                license: "MIT",
+              },
+            },
+          },
+          null,
+          2,
+        ),
+        "utf8",
+      );
+      await mkdir(join(projectRoot, "node_modules", "variant-license-package"), {
+        recursive: true,
+      });
+      await writeFile(
+        join(projectRoot, "node_modules", "variant-license-package", "LICENSE-MIT.txt"),
+        "MIT License variant",
+        { encoding: "utf8", flag: "w" },
+      );
+
+      const result = await resolveNpmProject(projectRoot);
+      const dependency = result.dependencies[0];
+
+      expect(dependency).toEqual(
+        expect.objectContaining({
+          name: "variant-license-package",
+          licenseText: "MIT License variant",
+          licenseSourcePath: "node_modules/variant-license-package/LICENSE-MIT.txt",
+        }),
+      );
+      expect(dependency?.warnings).not.toEqual(
+        expect.arrayContaining([expect.objectContaining({ code: "license_file_missing" })]),
+      );
+    } finally {
+      await rm(projectRoot, { recursive: true, force: true });
+    }
+  });
+
+  it("falls back to legacy package.json licenses when lockfile license is missing", async () => {
+    const projectRoot = await mkdtemp(join(tmpdir(), "uln-npm-legacy-license-field-"));
+
+    try {
+      await writeFile(
+        join(projectRoot, "package-lock.json"),
+        JSON.stringify(
+          {
+            lockfileVersion: 3,
+            packages: {
+              "": {
+                name: "fixture",
+                version: "1.0.0",
+              },
+              "node_modules/legacy-license-package": {
+                version: "1.2.3",
+              },
+            },
+          },
+          null,
+          2,
+        ),
+        "utf8",
+      );
+      await mkdir(join(projectRoot, "node_modules", "legacy-license-package"), {
+        recursive: true,
+      });
+      await writeFile(
+        join(projectRoot, "node_modules", "legacy-license-package", "package.json"),
+        JSON.stringify(
+          {
+            name: "legacy-license-package",
+            version: "1.2.3",
+            licenses: [{ type: "MIT" }],
+          },
+          null,
+          2,
+        ),
+        { encoding: "utf8", flag: "w" },
+      );
+
+      const result = await resolveNpmProject(projectRoot);
+      const dependency = result.dependencies[0];
+
+      expect(dependency?.licenseExpression).toBe("MIT");
+      expect(dependency?.warnings).not.toEqual(
+        expect.arrayContaining([expect.objectContaining({ code: "license_missing" })]),
+      );
+    } finally {
+      await rm(projectRoot, { recursive: true, force: true });
+    }
+  });
+
   it("skips bundling when --dont-include-license-text is enabled", async () => {
     const projectRoot = await mkdtemp(join(tmpdir(), "uln-npm-license-text-"));
 

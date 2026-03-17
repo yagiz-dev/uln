@@ -1,10 +1,11 @@
-import { readFile } from "node:fs/promises";
+import { readFile, readdir } from "node:fs/promises";
 import { isAbsolute, join, relative, resolve } from "node:path";
 import type { ResolveAdapterOptions } from "../types.js";
 import type { ScanResult, Warning } from "../../types/dependency.js";
 import { fileExists } from "../../utils/fs.js";
 import { normalizeDependency } from "../../core/normalize.js";
 import { WARNING_MESSAGES } from "../../core/warning-messages.js";
+import { normalizeLicenseField } from "../../licenses/normalize.js";
 import { parsePackageJson } from "./parse-package-json.js";
 import { parsePackageLock } from "./parse-package-lock.js";
 
@@ -13,6 +14,23 @@ const DEFAULT_RESOLVE_OPTIONS: ResolveAdapterOptions = {
 };
 
 const LICENSE_FILE_CANDIDATES = ["LICENSE", "LICENSE.txt", "LICENSE.md", "COPYING", "NOTICE"];
+
+function isLicenseFileCandidate(fileName: string): boolean {
+  const lowerName = fileName.toLowerCase();
+
+  if (LICENSE_FILE_CANDIDATES.map((candidate) => candidate.toLowerCase()).includes(lowerName)) {
+    return true;
+  }
+
+  return (
+    lowerName.startsWith("license-") ||
+    lowerName.startsWith("license.") ||
+    lowerName.startsWith("copying-") ||
+    lowerName.startsWith("copying.") ||
+    lowerName.startsWith("notice-") ||
+    lowerName.startsWith("notice.")
+  );
+}
 
 function createWarning(code: string, message: string, packageName?: string): Warning {
   return { code, message, packageName };
@@ -58,7 +76,18 @@ async function getBundledLicense(
     candidatePaths.push(join(packageDirectory, fileName.toLowerCase()));
   }
 
-  for (const candidatePath of candidatePaths) {
+  const packageDirectoryEntries = await readdir(packageDirectory, {
+    withFileTypes: true,
+  });
+  const additionalCandidates = packageDirectoryEntries
+    .filter((entry) => entry.isFile() && isLicenseFileCandidate(entry.name))
+    .map((entry) => join(packageDirectory, entry.name));
+
+  candidatePaths.push(...additionalCandidates);
+
+  const deduplicatedCandidatePaths = [...new Set(candidatePaths)];
+
+  for (const candidatePath of deduplicatedCandidatePaths) {
     if (!(await fileExists(candidatePath))) {
       continue;
     }
@@ -72,6 +101,88 @@ async function getBundledLicense(
   }
 
   return { packageDirectoryExists: true };
+}
+
+function collectLegacyLicenseValues(parsedPackageJson: unknown): string[] {
+  if (!parsedPackageJson || typeof parsedPackageJson !== "object") {
+    return [];
+  }
+
+  const packageJson = parsedPackageJson as {
+    license?: unknown;
+    licenses?: unknown;
+  };
+
+  if (typeof packageJson.license === "string" && packageJson.license.trim() !== "") {
+    return [packageJson.license];
+  }
+
+  if (
+    Array.isArray(packageJson.license) &&
+    packageJson.license.every((license) => typeof license === "string")
+  ) {
+    return packageJson.license.filter((license) => license.trim() !== "");
+  }
+
+  if (!Array.isArray(packageJson.licenses)) {
+    return [];
+  }
+
+  const legacyValues = packageJson.licenses.flatMap((license) => {
+    if (typeof license === "string") {
+      return license;
+    }
+
+    if (
+      license &&
+      typeof license === "object" &&
+      "type" in license &&
+      typeof license.type === "string"
+    ) {
+      return license.type;
+    }
+
+    return [];
+  });
+
+  return legacyValues.filter((license) => license.trim() !== "");
+}
+
+async function resolveLicenseFromInstalledPackage(
+  projectRoot: string,
+  packagePath: string,
+): Promise<{
+  licenseExpression?: string;
+  licenseWarnings: string[];
+}> {
+  const packageJsonPath = join(projectRoot, packagePath, "package.json");
+  if (!(await fileExists(packageJsonPath))) {
+    return { licenseExpression: undefined, licenseWarnings: [] };
+  }
+
+  let parsedPackageJson: unknown;
+
+  try {
+    parsedPackageJson = JSON.parse(await readFile(packageJsonPath, "utf8"));
+  } catch {
+    return { licenseExpression: undefined, licenseWarnings: [] };
+  }
+
+  const licenseValues = collectLegacyLicenseValues(parsedPackageJson);
+  if (licenseValues.length === 0) {
+    return { licenseExpression: undefined, licenseWarnings: [] };
+  }
+
+  const singleLicenseValue = licenseValues[0];
+  const normalized =
+    licenseValues.length === 1 && singleLicenseValue
+      ? normalizeLicenseField(singleLicenseValue)
+      : normalizeLicenseField(licenseValues);
+
+  return {
+    licenseExpression: normalized.normalizedExpression,
+    licenseWarnings: normalized.warnings,
+  };
 }
 
 export async function resolveNpmProject(
@@ -132,14 +243,23 @@ export async function resolveNpmProject(
   const dependencies = await Promise.all(
     parsedLock.packages.map(async (pkg) => {
       const dependencyWarnings: Warning[] = [];
+      let licenseExpression = pkg.licenseExpression;
 
-      if (!pkg.licenseExpression) {
+      const fallbackLicense = !licenseExpression
+        ? await resolveLicenseFromInstalledPackage(projectRoot, pkg.packagePath)
+        : { licenseExpression: undefined, licenseWarnings: [] };
+
+      if (!licenseExpression && fallbackLicense.licenseExpression) {
+        licenseExpression = fallbackLicense.licenseExpression;
+      }
+
+      if (!licenseExpression) {
         dependencyWarnings.push(
           createWarning("license_missing", WARNING_MESSAGES.licenseMissingFromLockfile, pkg.name),
         );
       }
 
-      for (const message of pkg.licenseWarnings) {
+      for (const message of [...pkg.licenseWarnings, ...fallbackLicense.licenseWarnings]) {
         if (options.includeLicenseText && message === WARNING_MESSAGES.licenseFileReference) {
           continue;
         }
@@ -166,7 +286,7 @@ export async function resolveNpmProject(
         name: pkg.name,
         version: pkg.version,
         direct: directDependencyNames.has(pkg.name),
-        licenseExpression: pkg.licenseExpression,
+        licenseExpression,
         homepage: pkg.homepage,
         repository: pkg.repository,
         author: pkg.author,

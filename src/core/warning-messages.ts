@@ -2,6 +2,8 @@ export const WARNING_MESSAGES = {
   licenseFileReference: "License uses a file reference instead of a normalized SPDX expression.",
   licenseNotNormalized:
     "License metadata could not be normalized to a known SPDX-style identifier.",
+  licenseHeuristicallyNormalized: (normalizedExpression: string): string =>
+    `License metadata was normalized heuristically to SPDX expression "${normalizedExpression}".`,
   npmLockfileMissing:
     "package-lock.json is missing; results only include direct dependencies declared in package.json.",
   npmVersionUnknown: "Dependency version is unknown without package-lock.json.",

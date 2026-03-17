@@ -23,6 +23,32 @@ describe("normalizeLicenseValue", () => {
       warnings: [],
     });
   });
+
+  it("normalizes CC0 and Unlicense SPDX identifiers", () => {
+    expect(normalizeLicenseValue("CC0-1.0")).toEqual({
+      normalizedExpression: "CC0-1.0",
+      warnings: [],
+    });
+
+    expect(normalizeLicenseValue("Unlicense")).toEqual({
+      normalizedExpression: "Unlicense",
+      warnings: [],
+    });
+  });
+
+  it("accepts valid SPDX expressions with mixed operator casing", () => {
+    expect(normalizeLicenseValue("MIT or Apache-2.0")).toEqual({
+      normalizedExpression: "MIT OR Apache-2.0",
+      warnings: [],
+    });
+  });
+
+  it("applies heuristic SPDX correction when value is close", () => {
+    expect(normalizeLicenseValue("BSD")).toEqual({
+      normalizedExpression: "BSD-2-Clause",
+      warnings: [WARNING_MESSAGES.licenseHeuristicallyNormalized("BSD-2-Clause")],
+    });
+  });
 });
 
 describe("normalizeLicenseField", () => {

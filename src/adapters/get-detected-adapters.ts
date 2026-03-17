@@ -4,13 +4,12 @@ export async function getDetectedAdapters(
   projectRoot: string,
   packageManagers: SupportedPackageManagerRegistryEntry[],
 ): Promise<SupportedPackageManagerRegistryEntry[]> {
-  const detectedAdapters: SupportedPackageManagerRegistryEntry[] = [];
+  const detectionResults = await Promise.all(
+    packageManagers.map(async (packageManager) => ({
+      packageManager,
+      detected: await packageManager.adapter.detect(projectRoot),
+    })),
+  );
 
-  for (const packageManager of packageManagers) {
-    if (await packageManager.adapter.detect(projectRoot)) {
-      detectedAdapters.push(packageManager);
-    }
-  }
-
-  return detectedAdapters;
+  return detectionResults.flatMap((result) => (result.detected ? [result.packageManager] : []));
 }

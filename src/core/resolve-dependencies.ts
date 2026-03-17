@@ -14,16 +14,16 @@ export async function resolveDependencies(
 ): Promise<ScanResult[]> {
   const activeAdapters = await getDetectedAdapters(projectRoot, getSupportedPackageManagers());
 
-  const results: ScanResult[] = [];
-
-  for (const packageManager of activeAdapters) {
-    const result = await packageManager.adapter.resolve(projectRoot, options);
-    results.push({
-      packageManager: result.packageManager,
-      dependencies: mergeDependencies(result.dependencies),
-      warnings: mergeWarnings(result.warnings),
-    });
-  }
+  const results = await Promise.all(
+    activeAdapters.map(async (packageManager) => {
+      const result = await packageManager.adapter.resolve(projectRoot, options);
+      return {
+        packageManager: result.packageManager,
+        dependencies: mergeDependencies(result.dependencies),
+        warnings: mergeWarnings(result.warnings),
+      };
+    }),
+  );
 
   return applyProjectConfig(results, config);
 }

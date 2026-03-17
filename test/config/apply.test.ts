@@ -20,8 +20,7 @@ describe("applyProjectConfig", () => {
             author: undefined,
             warnings: [
               {
-                code: "license_normalization_warning",
-                message: "License uses a file reference instead of a normalized SPDX expression.",
+                code: "license_file_reference",
                 packageName: "chalk",
               },
             ],
@@ -122,7 +121,7 @@ describe("applyProjectConfig", () => {
             warnings: [
               {
                 code: "license_missing",
-                message: "License metadata is missing from package-lock.json.",
+                details: { reason: "missing_from_lockfile" },
                 packageName: "@scope/pkg",
               },
             ],

@@ -1,5 +1,5 @@
 import { describe, expect, it } from "vitest";
-import { WARNING_MESSAGES } from "../../src/core/warning-messages.js";
+import { WARNING_CODES } from "../../src/core/warning-codes.js";
 import { normalizeLicenseField, normalizeLicenseValue } from "../../src/licenses/normalize.js";
 
 describe("normalizeLicenseValue", () => {
@@ -13,7 +13,7 @@ describe("normalizeLicenseValue", () => {
   it("preserves file reference licenses and warns", () => {
     expect(normalizeLicenseValue("SEE LICENSE IN LICENSE.md")).toEqual({
       normalizedExpression: "SEE LICENSE IN LICENSE.md",
-      warnings: [WARNING_MESSAGES.licenseFileReference],
+      warnings: [{ code: WARNING_CODES.licenseFileReference }],
     });
   });
 
@@ -46,7 +46,14 @@ describe("normalizeLicenseValue", () => {
   it("applies heuristic SPDX correction when value is close", () => {
     expect(normalizeLicenseValue("BSD")).toEqual({
       normalizedExpression: "BSD-2-Clause",
-      warnings: [WARNING_MESSAGES.licenseHeuristicallyNormalized("BSD-2-Clause")],
+      warnings: [
+        {
+          code: WARNING_CODES.licenseHeuristicallyNormalized,
+          details: {
+            normalizedExpression: "BSD-2-Clause",
+          },
+        },
+      ],
     });
   });
 });

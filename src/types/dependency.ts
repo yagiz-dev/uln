@@ -1,10 +1,11 @@
 import type { SupportedPackageManager } from "./package-manager.js";
+import type { WarningCode, WarningDetailsByCode } from "../core/warning-codes.js";
 
-export interface Warning {
-  code: string;
-  message: string;
-  packageName?: string;
-}
+export type Warning = {
+  [Code in WarningCode]: Code extends keyof WarningDetailsByCode
+    ? { code: Code; packageName?: string; details: WarningDetailsByCode[Code] }
+    : { code: Code; packageName?: string; details?: undefined };
+}[WarningCode];
 
 export interface NormalizedDependency {
   packageManager: SupportedPackageManager;

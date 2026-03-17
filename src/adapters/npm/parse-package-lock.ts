@@ -1,6 +1,7 @@
 import { join } from "node:path";
 import { z } from "zod";
 import { normalizeLicenseField } from "../../licenses/normalize.js";
+import type { Warning } from "../../types/dependency.js";
 import { readJsonFile } from "../../utils/fs.js";
 
 const lockfilePackageSchema = z
@@ -46,7 +47,7 @@ export interface ParsedLockPackage {
   version: string;
   licenseExpression?: string;
   licenseFileHint?: string;
-  licenseWarnings: string[];
+  licenseWarnings: Warning[];
   homepage?: string;
   repository?: string;
   author?: string;
@@ -110,7 +111,7 @@ function normalizeAuthor(
 
 function normalizeLicense(value: z.infer<typeof lockfilePackageSchema>["license"]): {
   licenseExpression?: string;
-  licenseWarnings: string[];
+  licenseWarnings: Warning[];
 } {
   if (!value) {
     return {

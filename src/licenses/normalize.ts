@@ -1,4 +1,5 @@
-import { WARNING_MESSAGES } from "../core/warning-messages.js";
+import { WARNING_CODES } from "../core/warning-codes.js";
+import type { Warning } from "../types/dependency.js";
 import spdxCorrect from "spdx-correct";
 import parseSpdxExpression from "spdx-expression-parse";
 import validateSpdxExpression from "spdx-expression-validate";
@@ -6,7 +7,7 @@ import validateNpmPackageLicense from "validate-npm-package-license";
 
 export interface LicenseNormalizationResult {
   normalizedExpression?: string;
-  warnings: string[];
+  warnings: Warning[];
 }
 
 function cleanLicenseValue(value: string): string {
@@ -66,13 +67,13 @@ function normalizeReferenceLicense(value: string): LicenseNormalizationResult {
   if (/^SEE LICEN[CS]E IN /i.test(value)) {
     return {
       normalizedExpression: value,
-      warnings: [WARNING_MESSAGES.licenseFileReference],
+      warnings: [{ code: WARNING_CODES.licenseFileReference }],
     };
   }
 
   return {
     normalizedExpression: value,
-    warnings: [WARNING_MESSAGES.licenseNotNormalized],
+    warnings: [{ code: WARNING_CODES.licenseNotNormalized }],
   };
 }
 
@@ -127,7 +128,14 @@ export function normalizeLicenseValue(value: string): LicenseNormalizationResult
     return {
       normalizedExpression: correctedLicense,
       warnings: isAmbiguousHeuristicInput(cleanedValue)
-        ? [WARNING_MESSAGES.licenseHeuristicallyNormalized(correctedLicense)]
+        ? [
+            {
+              code: WARNING_CODES.licenseHeuristicallyNormalized,
+              details: {
+                normalizedExpression: correctedLicense,
+              },
+            },
+          ]
         : [],
     };
   }

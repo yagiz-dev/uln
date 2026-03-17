@@ -1,4 +1,5 @@
 import type { ScanResult } from "../types/dependency.js";
+import { getWarningMessage } from "../core/warning-codes.js";
 
 function renderDependencyBlock(result: ScanResult): string {
   if (result.dependencies.length === 0) {
@@ -36,9 +37,9 @@ function renderWarnings(result: ScanResult): string {
   }
 
   const warnings = [
-    ...result.warnings.map((warning) => `- ${warning.message}`),
+    ...result.warnings.map((warning) => `- ${getWarningMessage(warning)}`),
     ...result.dependencies.flatMap((dependency) =>
-      dependency.warnings.map((warning) => `- ${dependency.name}: ${warning.message}`),
+      dependency.warnings.map((warning) => `- ${dependency.name}: ${getWarningMessage(warning)}`),
     ),
   ];
 

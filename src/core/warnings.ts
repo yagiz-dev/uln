@@ -6,7 +6,7 @@ export function mergeWarnings(warnings: Warning[]): Warning[] {
   const merged: Warning[] = [];
 
   for (const warning of warnings) {
-    const key = `${warning.code}:${warning.packageName ?? ""}:${warning.message}`;
+    const key = `${warning.code}:${warning.packageName ?? ""}:${JSON.stringify(warning.details ?? null)}`;
     if (seen.has(key)) {
       continue;
     }

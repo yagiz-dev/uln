@@ -20,7 +20,7 @@ program
   .version(programVersion)
   .addHelpText(
     "after",
-    `\nMade by Yağızhan Burak Yakar (https://yagiz.dev)\nSource code available in:https://github.com/yagiz-dev/universal-license-notice\nLicensed under MIT.\n`,
+    `\nMade by Yağızhan Burak Yakar (https://yagiz.dev)\nSource code available in: https://github.com/yagiz-dev/universal-license-notice\nLicensed under MIT.\n`,
   );
 
 registerScanCommand(program);

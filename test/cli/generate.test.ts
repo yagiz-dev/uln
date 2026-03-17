@@ -60,22 +60,22 @@ describe("collectGenerateWarnings", () => {
     const warnings = collectGenerateWarnings([
       {
         packageManager: "npm",
-        warnings: [{ code: "npm_lockfile_missing", message: "package-lock.json is missing." }],
+        warnings: [{ code: "npm_lockfile_missing" }],
         dependencies: [
           {
             packageManager: "npm",
             name: "left-pad",
             version: "1.3.0",
             direct: true,
-            warnings: [{ code: "license_missing", message: "License metadata is missing." }],
+            warnings: [{ code: "license_missing", details: { reason: "missing_from_lockfile" } }],
           },
         ],
       },
     ]);
 
     expect(warnings).toEqual([
-      "npm package-lock.json is missing.",
-      "npm:left-pad License metadata is missing.",
+      "npm package-lock.json is missing; results only include direct dependencies declared in package.json.",
+      "npm:left-pad License metadata is missing from package-lock.json.",
     ]);
   });
 
@@ -83,7 +83,7 @@ describe("collectGenerateWarnings", () => {
     const warnings = collectGenerateWarnings([
       {
         packageManager: "npm",
-        warnings: [{ code: "npm_lockfile_missing", message: "package-lock.json is missing." }],
+        warnings: [{ code: "npm_lockfile_missing" }],
         dependencies: [
           {
             packageManager: "npm",
@@ -91,22 +91,22 @@ describe("collectGenerateWarnings", () => {
             version: "1.3.0",
             direct: true,
             warnings: [
-              { code: "license_missing", message: "License metadata is missing." },
-              { code: "license_missing", message: "License metadata is missing." },
+              { code: "license_missing", details: { reason: "missing_from_lockfile" } },
+              { code: "license_missing", details: { reason: "missing_from_lockfile" } },
             ],
           },
         ],
       },
       {
         packageManager: "npm",
-        warnings: [{ code: "npm_lockfile_missing", message: "package-lock.json is missing." }],
+        warnings: [{ code: "npm_lockfile_missing" }],
         dependencies: [],
       },
     ]);
 
     expect(warnings).toEqual([
-      "npm package-lock.json is missing.",
-      "npm:left-pad License metadata is missing.",
+      "npm package-lock.json is missing; results only include direct dependencies declared in package.json.",
+      "npm:left-pad License metadata is missing from package-lock.json.",
     ]);
   });
 });

@@ -2,7 +2,7 @@ import { mkdir, mkdtemp, rm, writeFile } from "node:fs/promises";
 import { tmpdir } from "node:os";
 import { join, resolve } from "node:path";
 import { describe, expect, it } from "vitest";
-import { WARNING_MESSAGES } from "../../src/core/warning-messages.js";
+import { WARNING_CODES } from "../../src/core/warning-codes.js";
 import { resolveNpmProject } from "../../src/adapters/npm/resolve.js";
 
 describe("resolveNpmProject", () => {
@@ -67,8 +67,7 @@ describe("resolveNpmProject", () => {
 
     expect(fileRef?.warnings).toEqual([
       expect.objectContaining({
-        code: "license_normalization_warning",
-        message: WARNING_MESSAGES.licenseFileReference,
+        code: WARNING_CODES.licenseFileReference,
       }),
     ]);
   });

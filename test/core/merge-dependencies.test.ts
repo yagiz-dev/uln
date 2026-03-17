@@ -13,7 +13,6 @@ describe("mergeDependencies", () => {
         warnings: [
           {
             code: "repository_missing",
-            message: "Repository metadata is missing.",
             packageName: "chalk",
           },
         ],
@@ -29,7 +28,7 @@ describe("mergeDependencies", () => {
         warnings: [
           {
             code: "license_missing",
-            message: "License metadata is missing.",
+            details: { reason: "missing_from_lockfile" },
             packageName: "chalk",
           },
         ],
@@ -49,12 +48,11 @@ describe("mergeDependencies", () => {
         warnings: [
           {
             code: "license_missing",
-            message: "License metadata is missing.",
+            details: { reason: "missing_from_lockfile" },
             packageName: "chalk",
           },
           {
             code: "repository_missing",
-            message: "Repository metadata is missing.",
             packageName: "chalk",
           },
         ],

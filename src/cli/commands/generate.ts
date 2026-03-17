@@ -2,6 +2,7 @@ import { writeFile } from "node:fs/promises";
 import { cwd } from "node:process";
 import type { Command } from "commander";
 import { loadProjectConfig } from "../../config/load.js";
+import { getWarningMessage } from "../../core/warning-codes.js";
 import { resolveDependencies } from "../../core/resolve-dependencies.js";
 import { renderJson } from "../../renderers/json.js";
 import { renderText } from "../../renderers/text.js";
@@ -50,7 +51,7 @@ export function collectGenerateWarnings(results: ScanResult[]): string[] {
   for (const result of results) {
     for (const warning of result.warnings) {
       const warningTarget = warning.packageName ? `:${warning.packageName}` : "";
-      const warningLine = `${result.packageManager}${warningTarget} ${warning.message}`;
+      const warningLine = `${result.packageManager}${warningTarget} ${getWarningMessage(warning)}`;
 
       if (seen.has(warningLine)) {
         continue;
@@ -63,7 +64,7 @@ export function collectGenerateWarnings(results: ScanResult[]): string[] {
     for (const dependency of result.dependencies) {
       for (const warning of dependency.warnings) {
         const warningTarget = warning.packageName ?? dependency.name;
-        const warningLine = `${result.packageManager}:${warningTarget} ${warning.message}`;
+        const warningLine = `${result.packageManager}:${warningTarget} ${getWarningMessage(warning)}`;
 
         if (seen.has(warningLine)) {
           continue;

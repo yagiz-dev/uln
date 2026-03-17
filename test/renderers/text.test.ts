@@ -13,7 +13,7 @@ describe("renderText", () => {
       renderText([
         {
           packageManager: "npm",
-          warnings: [{ code: "npm_lockfile_missing", message: "package-lock.json is missing." }],
+          warnings: [{ code: "npm_lockfile_missing" }],
           dependencies: [
             {
               packageManager: "npm",
@@ -22,8 +22,7 @@ describe("renderText", () => {
               direct: true,
               warnings: [
                 {
-                  code: "license_normalization_warning",
-                  message: "License uses a file reference instead of a normalized SPDX expression.",
+                  code: "license_file_reference",
                   packageName: "chalk",
                 },
               ],
@@ -41,7 +40,7 @@ Repository: Unknown
 Homepage: Unknown
 Author: Unknown
 Warnings:
-- package-lock.json is missing.
+- package-lock.json is missing; results only include direct dependencies declared in package.json.
 - chalk: License uses a file reference instead of a normalized SPDX expression.`);
   });
 

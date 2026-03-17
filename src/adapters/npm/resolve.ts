@@ -4,7 +4,11 @@ import type { ResolveAdapterOptions } from "../types.js";
 import type { ScanResult, Warning } from "../../types/dependency.js";
 import { fileExists } from "../../utils/fs.js";
 import { normalizeDependency } from "../../core/normalize.js";
-import { WARNING_MESSAGES } from "../../core/warning-messages.js";
+import {
+  WARNING_CODES,
+  type WarningCode,
+  type WarningDetailsByCode,
+} from "../../core/warning-codes.js";
 import { normalizeLicenseField } from "../../licenses/normalize.js";
 import { parsePackageJson } from "./parse-package-json.js";
 import { parsePackageLock } from "./parse-package-lock.js";
@@ -14,11 +18,14 @@ const DEFAULT_RESOLVE_OPTIONS: ResolveAdapterOptions = {
 };
 
 const LICENSE_FILE_CANDIDATES = ["LICENSE", "LICENSE.txt", "LICENSE.md", "COPYING", "NOTICE"];
+const LICENSE_FILE_CANDIDATES_LOWERCASE = new Set(
+  LICENSE_FILE_CANDIDATES.map((candidate) => candidate.toLowerCase()),
+);
 
 function isLicenseFileCandidate(fileName: string): boolean {
   const lowerName = fileName.toLowerCase();
 
-  if (LICENSE_FILE_CANDIDATES.map((candidate) => candidate.toLowerCase()).includes(lowerName)) {
+  if (LICENSE_FILE_CANDIDATES_LOWERCASE.has(lowerName)) {
     return true;
   }
 
@@ -32,8 +39,18 @@ function isLicenseFileCandidate(fileName: string): boolean {
   );
 }
 
-function createWarning(code: string, message: string, packageName?: string): Warning {
-  return { code, message, packageName };
+function createWarning<Code extends WarningCode>(
+  code: Code,
+  options?: {
+    packageName?: string;
+    details?: Code extends keyof WarningDetailsByCode ? WarningDetailsByCode[Code] : never;
+  },
+): Warning {
+  return {
+    code,
+    packageName: options?.packageName,
+    details: options?.details,
+  } as Warning;
 }
 
 function toSafePackagePath(packageDirectory: string, candidatePath: string): string | undefined {
@@ -78,7 +95,12 @@ async function getBundledLicense(
 
   const packageDirectoryEntries = await readdir(packageDirectory, {
     withFileTypes: true,
-  });
+  }).catch(() => undefined);
+
+  if (!packageDirectoryEntries) {
+    return { packageDirectoryExists: true };
+  }
+
   const additionalCandidates = packageDirectoryEntries
     .filter((entry) => entry.isFile() && isLicenseFileCandidate(entry.name))
     .map((entry) => join(packageDirectory, entry.name));
@@ -92,7 +114,14 @@ async function getBundledLicense(
       continue;
     }
 
-    const contents = await readFile(candidatePath, "utf8");
+    let contents: string;
+
+    try {
+      contents = await readFile(candidatePath, "utf8");
+    } catch {
+      continue;
+    }
+
     return {
       licenseText: contents.replace(/\r\n/g, "\n").trimEnd(),
       licenseSourcePath: relative(projectRoot, candidatePath),
@@ -153,7 +182,7 @@ async function resolveLicenseFromInstalledPackage(
   packagePath: string,
 ): Promise<{
   licenseExpression?: string;
-  licenseWarnings: string[];
+  licenseWarnings: Warning[];
 }> {
   const packageJsonPath = join(projectRoot, packagePath, "package.json");
   if (!(await fileExists(packageJsonPath))) {
@@ -201,7 +230,7 @@ export async function resolveNpmProject(
     : new Set<string>();
 
   if (!hasPackageLock) {
-    warnings.push(createWarning("npm_lockfile_missing", WARNING_MESSAGES.npmLockfileMissing));
+    warnings.push(createWarning(WARNING_CODES.npmLockfileMissing));
 
     return {
       packageManager: "npm",
@@ -212,12 +241,11 @@ export async function resolveNpmProject(
           version: "unknown",
           direct: true,
           warnings: [
-            createWarning("npm_version_unknown", WARNING_MESSAGES.npmVersionUnknown, name),
-            createWarning(
-              "license_missing",
-              WARNING_MESSAGES.licenseUnavailableWithoutLockfile,
-              name,
-            ),
+            createWarning(WARNING_CODES.npmVersionUnknown, { packageName: name }),
+            createWarning(WARNING_CODES.licenseMissing, {
+              packageName: name,
+              details: { reason: "without_lockfile" },
+            }),
           ],
         }),
       ),
@@ -233,10 +261,9 @@ export async function resolveNpmProject(
 
   if (![2, 3].includes(parsedLock.lockfileVersion)) {
     warnings.push(
-      createWarning(
-        "npm_lockfile_version_unsupported",
-        WARNING_MESSAGES.npmLockfileVersionUnsupported(parsedLock.lockfileVersion),
-      ),
+      createWarning(WARNING_CODES.npmLockfileVersionUnsupported, {
+        details: { lockfileVersion: parsedLock.lockfileVersion },
+      }),
     );
   }
 
@@ -255,16 +282,19 @@ export async function resolveNpmProject(
 
       if (!licenseExpression) {
         dependencyWarnings.push(
-          createWarning("license_missing", WARNING_MESSAGES.licenseMissingFromLockfile, pkg.name),
+          createWarning(WARNING_CODES.licenseMissing, {
+            packageName: pkg.name,
+            details: { reason: "missing_from_lockfile" },
+          }),
         );
       }
 
-      for (const message of [...pkg.licenseWarnings, ...fallbackLicense.licenseWarnings]) {
-        if (options.includeLicenseText && message === WARNING_MESSAGES.licenseFileReference) {
+      for (const warning of [...pkg.licenseWarnings, ...fallbackLicense.licenseWarnings]) {
+        if (options.includeLicenseText && warning.code === WARNING_CODES.licenseFileReference) {
           continue;
         }
 
-        dependencyWarnings.push(createWarning("license_normalization_warning", message, pkg.name));
+        dependencyWarnings.push({ ...warning, packageName: pkg.name });
       }
 
       const bundledLicense = options.includeLicenseText
@@ -277,7 +307,7 @@ export async function resolveNpmProject(
         !bundledLicense.licenseText
       ) {
         dependencyWarnings.push(
-          createWarning("license_file_missing", WARNING_MESSAGES.licenseFileMissing, pkg.name),
+          createWarning(WARNING_CODES.licenseFileMissing, { packageName: pkg.name }),
         );
       }
 

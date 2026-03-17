@@ -2,6 +2,7 @@ import type { ScanResult } from "../types/dependency.js";
 
 export interface ResolveAdapterOptions {
   includeLicenseText: boolean;
+  includeDevDependencies?: boolean;
 }
 
 export interface PackageManagerAdapter {

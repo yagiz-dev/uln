@@ -44,6 +44,7 @@ const composerLockSchema = z
 export interface ParsedComposerLockPackage {
   name: string;
   version: string;
+  dev: boolean;
   licenseExpression?: string;
   licenseFileHint?: string;
   licenseWarnings: Warning[];
@@ -101,9 +102,12 @@ export async function parseComposerLock(projectRoot: string): Promise<ParsedComp
   const composerLockPath = join(projectRoot, "composer.lock");
   const parsed = composerLockSchema.parse(await readJsonFile<unknown>(composerLockPath));
 
-  const lockPackages = [...(parsed.packages ?? []), ...(parsed["packages-dev"] ?? [])];
+  const lockPackages = [
+    ...(parsed.packages ?? []).map((lockPackage) => ({ lockPackage, dev: false })),
+    ...(parsed["packages-dev"] ?? []).map((lockPackage) => ({ lockPackage, dev: true })),
+  ];
   const packages = lockPackages
-    .map((lockPackage): ParsedComposerLockPackage | undefined => {
+    .map(({ lockPackage, dev }): ParsedComposerLockPackage | undefined => {
       if (isComposerPlatformPackage(lockPackage.name) || !lockPackage.version) {
         return undefined;
       }
@@ -117,6 +121,7 @@ export async function parseComposerLock(projectRoot: string): Promise<ParsedComp
       return {
         name: lockPackage.name,
         version: lockPackage.version,
+        dev,
         licenseWarnings: normalizedLicense.licenseWarnings,
         ...(normalizedLicense.licenseExpression
           ? { licenseExpression: normalizedLicense.licenseExpression }

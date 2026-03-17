@@ -3,6 +3,7 @@ import { describe, expect, it } from "vitest";
 import {
   collectGenerateWarnings,
   registerGenerateCommand,
+  shouldIncludeDevDependencies,
   shouldIncludeLicenseText,
   shouldWriteToStdout,
   validateGenerateCommandOptions,
@@ -28,6 +29,21 @@ describe("shouldIncludeLicenseText", () => {
       shouldIncludeLicenseText({
         format: "text",
         dontIncludeLicenseText: true,
+      }),
+    ).toBe(false);
+  });
+});
+
+describe("shouldIncludeDevDependencies", () => {
+  it("defaults to including development dependencies", () => {
+    expect(shouldIncludeDevDependencies({ format: "text" })).toBe(true);
+  });
+
+  it("excludes development dependencies when opted in", () => {
+    expect(
+      shouldIncludeDevDependencies({
+        format: "text",
+        excludeDev: true,
       }),
     ).toBe(false);
   });
@@ -126,5 +142,17 @@ describe("registerGenerateCommand", () => {
     const formatOption = generateCommand?.options.find((option) => option.long === "--format");
 
     expect(formatOption?.defaultValue).toBe("html");
+  });
+
+  it("registers --exclude-dev option", () => {
+    const program = new Command();
+    registerGenerateCommand(program);
+
+    const generateCommand = program.commands.find((command) => command.name() === "generate");
+    const excludeDevOption = generateCommand?.options.find(
+      (option) => option.long === "--exclude-dev",
+    );
+
+    expect(excludeDevOption).toBeDefined();
   });
 });

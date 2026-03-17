@@ -10,7 +10,7 @@ import { mergeWarnings } from "./warnings.js";
 export async function resolveDependencies(
   projectRoot: string,
   config: ProjectConfig = defaultProjectConfig,
-  options: ResolveAdapterOptions = { includeLicenseText: true },
+  options: ResolveAdapterOptions = { includeLicenseText: true, includeDevDependencies: true },
 ): Promise<ScanResult[]> {
   const activeAdapters = await getDetectedAdapters(projectRoot, getSupportedPackageManagers());
 

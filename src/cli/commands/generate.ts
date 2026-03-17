@@ -19,6 +19,7 @@ const WARN_LABEL = `${ANSI_YELLOW}WARN${ANSI_RESET}`;
 export interface GenerateCommandOptions {
   config?: string;
   dontIncludeLicenseText?: boolean;
+  excludeDev?: boolean;
   format: string;
   output?: string;
   stdout?: boolean;
@@ -62,6 +63,10 @@ export function shouldWriteToStdout(options: GenerateCommandOptions): boolean {
 
 export function shouldIncludeLicenseText(options: GenerateCommandOptions): boolean {
   return options.dontIncludeLicenseText !== true;
+}
+
+export function shouldIncludeDevDependencies(options: GenerateCommandOptions): boolean {
+  return options.excludeDev !== true;
 }
 
 export function validateGenerateCommandOptions(options: GenerateCommandOptions): void {
@@ -127,12 +132,14 @@ export function registerGenerateCommand(program: Command): void {
     .option("--output <path>", "Write output to the given path")
     .option("--config <path>", "Load configuration from the given JSON file")
     .option("--dont-include-license-text", "Skip bundling full license text for dependencies")
+    .option("--exclude-dev", "Exclude development dependencies from generated output")
     .option("--stdout", "Write generated notice output to stdout instead of a file")
     .action(async (options: GenerateCommandOptions) => {
       validateGenerateCommandOptions(options);
       const format = options.format as OutputFormat;
       const loadedConfig = await loadProjectConfig(cwd(), options.config);
       const includeLicenseText = shouldIncludeLicenseText(options);
+      const includeDevDependencies = shouldIncludeDevDependencies(options);
       const htmlConfig = loadedConfig.config.output?.html;
       const htmlTemplatePath = resolveHtmlTemplatePath(
         cwd(),
@@ -142,6 +149,7 @@ export function registerGenerateCommand(program: Command): void {
 
       const results = await resolveDependencies(cwd(), loadedConfig.config, {
         includeLicenseText,
+        includeDevDependencies,
       });
       const output =
         format === "json"

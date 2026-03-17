@@ -90,6 +90,44 @@ describe("resolveNpmProject", () => {
     ]);
   });
 
+  it("excludes dev dependencies when includeDevDependencies is false and package-lock.json is missing", async () => {
+    const projectRoot = await mkdtemp(join(tmpdir(), "uln-npm-no-lock-exclude-dev-"));
+
+    try {
+      await writeFile(
+        join(projectRoot, "package.json"),
+        JSON.stringify(
+          {
+            name: "fixture",
+            version: "1.0.0",
+            dependencies: {
+              chalk: "5.4.1",
+            },
+            devDependencies: {
+              vitest: "3.0.8",
+            },
+          },
+          null,
+          2,
+        ),
+        "utf8",
+      );
+
+      const result = await resolveNpmProject(projectRoot, {
+        includeLicenseText: true,
+        includeDevDependencies: false,
+      });
+
+      expect(result.dependencies).toEqual([
+        expect.objectContaining({
+          name: "chalk",
+        }),
+      ]);
+    } finally {
+      await rm(projectRoot, { recursive: true, force: true });
+    }
+  });
+
   it("marks workspace dependencies as direct and normalizes nested package names", async () => {
     const fixturePath = resolve("test/fixtures/npm-workspaces");
     const result = await resolveNpmProject(fixturePath);
@@ -111,6 +149,52 @@ describe("resolveNpmProject", () => {
         }),
       ]),
     );
+  });
+
+  it("excludes dev dependencies from package-lock.json when includeDevDependencies is false", async () => {
+    const projectRoot = await mkdtemp(join(tmpdir(), "uln-npm-exclude-dev-"));
+
+    try {
+      await writeFile(
+        join(projectRoot, "package-lock.json"),
+        JSON.stringify(
+          {
+            lockfileVersion: 3,
+            packages: {
+              "": {
+                name: "fixture",
+                version: "1.0.0",
+              },
+              "node_modules/runtime-package": {
+                version: "1.2.3",
+                license: "MIT",
+              },
+              "node_modules/dev-only-package": {
+                version: "4.5.6",
+                dev: true,
+                license: "MIT",
+              },
+            },
+          },
+          null,
+          2,
+        ),
+        "utf8",
+      );
+
+      const result = await resolveNpmProject(projectRoot, {
+        includeLicenseText: true,
+        includeDevDependencies: false,
+      });
+
+      expect(result.dependencies).toEqual([
+        expect.objectContaining({
+          name: "runtime-package",
+        }),
+      ]);
+    } finally {
+      await rm(projectRoot, { recursive: true, force: true });
+    }
   });
 
   it("bundles local license text by default when package files are available", async () => {

@@ -15,6 +15,7 @@ import { parseComposerLock } from "./parse-composer-lock.js";
 
 const DEFAULT_RESOLVE_OPTIONS: ResolveAdapterOptions = {
   includeLicenseText: true,
+  includeDevDependencies: true,
 };
 
 const LICENSE_FILE_CANDIDATES = ["LICENSE", "LICENSE.txt", "LICENSE.md", "COPYING", "NOTICE"];
@@ -291,6 +292,8 @@ export async function resolveComposerProject(
   const warnings: Warning[] = [];
   const parsedComposerJson = hasComposerJson ? await parseComposerJson(projectRoot) : undefined;
   const directDependencyNames = parsedComposerJson?.directDependencyNames ?? new Set<string>();
+  const directDevDependencyNames =
+    parsedComposerJson?.directDevDependencyNames ?? new Set<string>();
   const vendorDirectoryPath =
     parsedComposerJson?.vendorDirectoryPath ?? join(projectRoot, "vendor");
 
@@ -299,106 +302,110 @@ export async function resolveComposerProject(
 
     return {
       packageManager: "composer",
-      dependencies: [...directDependencyNames].map((name) =>
-        normalizeDependency({
-          packageManager: "composer",
-          name,
-          version: "unknown",
-          direct: true,
-          warnings: [
-            createWarning(WARNING_CODES.composerVersionUnknown, { packageName: name }),
-            createWarning(WARNING_CODES.licenseMissing, {
-              packageName: name,
-              details: { reason: "without_lockfile" },
-            }),
-          ],
-        }),
-      ),
+      dependencies: [...directDependencyNames]
+        .filter((name) => options.includeDevDependencies || !directDevDependencyNames.has(name))
+        .map((name) =>
+          normalizeDependency({
+            packageManager: "composer",
+            name,
+            version: "unknown",
+            direct: true,
+            warnings: [
+              createWarning(WARNING_CODES.composerVersionUnknown, { packageName: name }),
+              createWarning(WARNING_CODES.licenseMissing, {
+                packageName: name,
+                details: { reason: "without_lockfile" },
+              }),
+            ],
+          }),
+        ),
       warnings,
     };
   }
 
   const parsedLock = await parseComposerLock(projectRoot);
   const dependencies = await Promise.all(
-    parsedLock.packages.map(async (pkg) => {
-      const dependencyWarnings: Warning[] = [];
-      let licenseExpression = pkg.licenseExpression;
-      let homepage = pkg.homepage;
-      let repository = pkg.repository;
-      let author = pkg.author;
+    parsedLock.packages
+      .filter((pkg) => options.includeDevDependencies || !pkg.dev)
+      .map(async (pkg) => {
+        const dependencyWarnings: Warning[] = [];
+        let licenseExpression = pkg.licenseExpression;
+        let homepage = pkg.homepage;
+        let repository = pkg.repository;
+        let author = pkg.author;
 
-      const fallbackMetadata =
-        !licenseExpression || !homepage || !repository || !author
-          ? await resolveMetadataFromInstalledPackage(projectRoot, vendorDirectoryPath, pkg.name)
-          : {
-              licenseExpression: undefined,
-              licenseWarnings: [],
-              homepage: undefined,
-              repository: undefined,
-              author: undefined,
-            };
+        const fallbackMetadata =
+          !licenseExpression || !homepage || !repository || !author
+            ? await resolveMetadataFromInstalledPackage(projectRoot, vendorDirectoryPath, pkg.name)
+            : {
+                licenseExpression: undefined,
+                licenseWarnings: [],
+                homepage: undefined,
+                repository: undefined,
+                author: undefined,
+              };
 
-      if (!licenseExpression && fallbackMetadata.licenseExpression) {
-        licenseExpression = fallbackMetadata.licenseExpression;
-      }
-
-      if (!homepage && fallbackMetadata.homepage) {
-        homepage = fallbackMetadata.homepage;
-      }
-
-      if (!repository && fallbackMetadata.repository) {
-        repository = fallbackMetadata.repository;
-      }
-
-      if (!author && fallbackMetadata.author) {
-        author = fallbackMetadata.author;
-      }
-
-      if (!licenseExpression) {
-        dependencyWarnings.push(
-          createWarning(WARNING_CODES.licenseMissing, {
-            packageName: pkg.name,
-            details: { reason: "missing_from_lockfile" },
-          }),
-        );
-      }
-
-      for (const warning of [...pkg.licenseWarnings, ...fallbackMetadata.licenseWarnings]) {
-        if (options.includeLicenseText && warning.code === WARNING_CODES.licenseFileReference) {
-          continue;
+        if (!licenseExpression && fallbackMetadata.licenseExpression) {
+          licenseExpression = fallbackMetadata.licenseExpression;
         }
 
-        dependencyWarnings.push({ ...warning, packageName: pkg.name });
-      }
+        if (!homepage && fallbackMetadata.homepage) {
+          homepage = fallbackMetadata.homepage;
+        }
 
-      const bundledLicense = options.includeLicenseText
-        ? await getBundledLicense(projectRoot, vendorDirectoryPath, pkg.name, pkg.licenseFileHint)
-        : { packageDirectoryExists: false };
+        if (!repository && fallbackMetadata.repository) {
+          repository = fallbackMetadata.repository;
+        }
 
-      if (
-        options.includeLicenseText &&
-        bundledLicense.packageDirectoryExists &&
-        !bundledLicense.licenseText
-      ) {
-        dependencyWarnings.push(
-          createWarning(WARNING_CODES.licenseFileMissing, { packageName: pkg.name }),
-        );
-      }
+        if (!author && fallbackMetadata.author) {
+          author = fallbackMetadata.author;
+        }
 
-      return normalizeDependency({
-        packageManager: "composer",
-        name: pkg.name,
-        version: pkg.version,
-        direct: directDependencyNames.has(pkg.name),
-        licenseExpression,
-        homepage,
-        repository,
-        author,
-        licenseText: bundledLicense.licenseText,
-        licenseSourcePath: bundledLicense.licenseSourcePath,
-        warnings: dependencyWarnings,
-      });
-    }),
+        if (!licenseExpression) {
+          dependencyWarnings.push(
+            createWarning(WARNING_CODES.licenseMissing, {
+              packageName: pkg.name,
+              details: { reason: "missing_from_lockfile" },
+            }),
+          );
+        }
+
+        for (const warning of [...pkg.licenseWarnings, ...fallbackMetadata.licenseWarnings]) {
+          if (options.includeLicenseText && warning.code === WARNING_CODES.licenseFileReference) {
+            continue;
+          }
+
+          dependencyWarnings.push({ ...warning, packageName: pkg.name });
+        }
+
+        const bundledLicense = options.includeLicenseText
+          ? await getBundledLicense(projectRoot, vendorDirectoryPath, pkg.name, pkg.licenseFileHint)
+          : { packageDirectoryExists: false };
+
+        if (
+          options.includeLicenseText &&
+          bundledLicense.packageDirectoryExists &&
+          !bundledLicense.licenseText
+        ) {
+          dependencyWarnings.push(
+            createWarning(WARNING_CODES.licenseFileMissing, { packageName: pkg.name }),
+          );
+        }
+
+        return normalizeDependency({
+          packageManager: "composer",
+          name: pkg.name,
+          version: pkg.version,
+          direct: directDependencyNames.has(pkg.name),
+          licenseExpression,
+          homepage,
+          repository,
+          author,
+          licenseText: bundledLicense.licenseText,
+          licenseSourcePath: bundledLicense.licenseSourcePath,
+          warnings: dependencyWarnings,
+        });
+      }),
   );
 
   return {

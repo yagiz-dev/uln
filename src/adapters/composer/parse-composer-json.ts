@@ -16,6 +16,7 @@ const composerJsonSchema = z.object({
 
 export interface ParsedComposerJson {
   directDependencyNames: Set<string>;
+  directDevDependencyNames: Set<string>;
   vendorDirectoryPath: string;
 }
 
@@ -36,14 +37,21 @@ export async function parseComposerJson(projectRoot: string): Promise<ParsedComp
   const composerJsonPath = join(projectRoot, "composer.json");
   const parsed = composerJsonSchema.parse(await readJsonFile<unknown>(composerJsonPath));
 
+  const directDevDependencyNames = new Set<string>(Object.keys(parsed["require-dev"] ?? {}));
   const directDependencyNames = new Set<string>([
     ...Object.keys(parsed.require ?? {}),
-    ...Object.keys(parsed["require-dev"] ?? {}),
+    ...directDevDependencyNames,
   ]);
 
   for (const packageName of [...directDependencyNames]) {
     if (isComposerPlatformPackage(packageName)) {
       directDependencyNames.delete(packageName);
+    }
+  }
+
+  for (const packageName of [...directDevDependencyNames]) {
+    if (isComposerPlatformPackage(packageName)) {
+      directDevDependencyNames.delete(packageName);
     }
   }
 
@@ -54,5 +62,5 @@ export async function parseComposerJson(projectRoot: string): Promise<ParsedComp
       : resolve(projectRoot, configuredVendorDirectory)
     : join(projectRoot, "vendor");
 
-  return { directDependencyNames, vendorDirectoryPath };
+  return { directDependencyNames, directDevDependencyNames, vendorDirectoryPath };
 }

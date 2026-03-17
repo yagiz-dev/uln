@@ -79,6 +79,7 @@ uln generate
 - If you do not specify a format, HTML output is used by default.
 - Full dependency license text is included by default when local package license files are available.
 - Use `--dont-include-license-text` to disable license text bundling.
+- Use `--exclude-dev` to exclude development dependencies (for managers that can identify them).
 
 Examples:
 
@@ -89,6 +90,7 @@ uln generate --output notices.txt
 uln generate --format html --output third-party-notices.html
 uln generate --stdout
 uln generate --stdout --format json
+uln generate --exclude-dev
 uln generate --config uln.config.json
 ```
 

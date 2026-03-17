@@ -8,6 +8,7 @@ const lockfilePackageSchema = z
   .object({
     name: z.string().optional(),
     version: z.string().optional(),
+    dev: z.boolean().optional(),
     license: z.union([z.string(), z.array(z.string())]).optional(),
     homepage: z.string().optional(),
     dependencies: z.record(z.string()).optional(),
@@ -45,6 +46,7 @@ export interface ParsedLockPackage {
   name: string;
   packagePath: string;
   version: string;
+  dev: boolean;
   licenseExpression?: string;
   licenseFileHint?: string;
   licenseWarnings: Warning[];
@@ -167,6 +169,7 @@ export async function parsePackageLock(projectRoot: string): Promise<ParsedPacka
         name,
         packagePath,
         version: lockPackage.version,
+        dev: lockPackage.dev === true,
         licenseWarnings: normalizedLicense.licenseWarnings,
         ...(normalizedLicense.licenseExpression
           ? { licenseExpression: normalizedLicense.licenseExpression }

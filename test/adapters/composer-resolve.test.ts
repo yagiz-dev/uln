@@ -30,6 +30,22 @@ describe("resolveComposerProject", () => {
     );
   });
 
+  it("excludes packages-dev dependencies when includeDevDependencies is false", async () => {
+    const fixturePath = resolve("test/fixtures/composer-basic");
+    const result = await resolveComposerProject(fixturePath, {
+      includeLicenseText: true,
+      includeDevDependencies: false,
+    });
+
+    expect(result.packageManager).toBe("composer");
+    expect(result.dependencies).toHaveLength(1);
+    expect(result.dependencies[0]).toEqual(
+      expect.objectContaining({
+        name: "monolog/monolog",
+      }),
+    );
+  });
+
   it("emits dependency warnings when license metadata is missing", async () => {
     const fixturePath = resolve("test/fixtures/composer-missing-license");
     const result = await resolveComposerProject(fixturePath);
@@ -68,6 +84,20 @@ describe("resolveComposerProject", () => {
     expect(result.warnings).toEqual([
       expect.objectContaining({
         code: "composer_lockfile_missing",
+      }),
+    ]);
+  });
+
+  it("excludes require-dev dependencies when includeDevDependencies is false and composer.lock is missing", async () => {
+    const fixturePath = resolve("test/fixtures/composer-no-lockfile");
+    const result = await resolveComposerProject(fixturePath, {
+      includeLicenseText: true,
+      includeDevDependencies: false,
+    });
+
+    expect(result.dependencies).toEqual([
+      expect.objectContaining({
+        name: "symfony/console",
       }),
     ]);
   });

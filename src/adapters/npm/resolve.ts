@@ -15,6 +15,7 @@ import { parsePackageLock } from "./parse-package-lock.js";
 
 const DEFAULT_RESOLVE_OPTIONS: ResolveAdapterOptions = {
   includeLicenseText: true,
+  includeDevDependencies: true,
 };
 
 const LICENSE_FILE_CANDIDATES = ["LICENSE", "LICENSE.txt", "LICENSE.md", "COPYING", "NOTICE"];
@@ -313,30 +314,37 @@ export async function resolveNpmProject(
   const hasPackageLock = await fileExists(packageLockPath);
 
   const warnings: Warning[] = [];
-  const packageJsonDirectDependencyNames = hasPackageJson
-    ? (await parsePackageJson(projectRoot)).directDependencyNames
-    : new Set<string>();
+  const parsedPackageJson = hasPackageJson ? await parsePackageJson(projectRoot) : undefined;
+  const packageJsonDirectDependencyNames =
+    parsedPackageJson?.directDependencyNames ?? new Set<string>();
+  const packageJsonDirectDevDependencyNames =
+    parsedPackageJson?.directDevDependencyNames ?? new Set<string>();
 
   if (!hasPackageLock) {
     warnings.push(createWarning(WARNING_CODES.npmLockfileMissing));
 
     return {
       packageManager: "npm",
-      dependencies: [...packageJsonDirectDependencyNames].map((name) =>
-        normalizeDependency({
-          packageManager: "npm",
-          name,
-          version: "unknown",
-          direct: true,
-          warnings: [
-            createWarning(WARNING_CODES.npmVersionUnknown, { packageName: name }),
-            createWarning(WARNING_CODES.licenseMissing, {
-              packageName: name,
-              details: { reason: "without_lockfile" },
-            }),
-          ],
-        }),
-      ),
+      dependencies: [...packageJsonDirectDependencyNames]
+        .filter(
+          (name) =>
+            options.includeDevDependencies || !packageJsonDirectDevDependencyNames.has(name),
+        )
+        .map((name) =>
+          normalizeDependency({
+            packageManager: "npm",
+            name,
+            version: "unknown",
+            direct: true,
+            warnings: [
+              createWarning(WARNING_CODES.npmVersionUnknown, { packageName: name }),
+              createWarning(WARNING_CODES.licenseMissing, {
+                packageName: name,
+                details: { reason: "without_lockfile" },
+              }),
+            ],
+          }),
+        ),
       warnings,
     };
   }
@@ -356,85 +364,87 @@ export async function resolveNpmProject(
   }
 
   const dependencies = await Promise.all(
-    parsedLock.packages.map(async (pkg) => {
-      const dependencyWarnings: Warning[] = [];
-      let licenseExpression = pkg.licenseExpression;
-      let homepage = pkg.homepage;
-      let repository = pkg.repository;
-      let author = pkg.author;
+    parsedLock.packages
+      .filter((pkg) => options.includeDevDependencies || !pkg.dev)
+      .map(async (pkg) => {
+        const dependencyWarnings: Warning[] = [];
+        let licenseExpression = pkg.licenseExpression;
+        let homepage = pkg.homepage;
+        let repository = pkg.repository;
+        let author = pkg.author;
 
-      const fallbackMetadata =
-        !licenseExpression || !homepage || !repository || !author
-          ? await resolveMetadataFromInstalledPackage(projectRoot, pkg.packagePath)
-          : {
-              licenseExpression: undefined,
-              licenseWarnings: [],
-              homepage: undefined,
-              repository: undefined,
-              author: undefined,
-            };
+        const fallbackMetadata =
+          !licenseExpression || !homepage || !repository || !author
+            ? await resolveMetadataFromInstalledPackage(projectRoot, pkg.packagePath)
+            : {
+                licenseExpression: undefined,
+                licenseWarnings: [],
+                homepage: undefined,
+                repository: undefined,
+                author: undefined,
+              };
 
-      if (!licenseExpression && fallbackMetadata.licenseExpression) {
-        licenseExpression = fallbackMetadata.licenseExpression;
-      }
-
-      if (!homepage && fallbackMetadata.homepage) {
-        homepage = fallbackMetadata.homepage;
-      }
-
-      if (!repository && fallbackMetadata.repository) {
-        repository = fallbackMetadata.repository;
-      }
-
-      if (!author && fallbackMetadata.author) {
-        author = fallbackMetadata.author;
-      }
-
-      if (!licenseExpression) {
-        dependencyWarnings.push(
-          createWarning(WARNING_CODES.licenseMissing, {
-            packageName: pkg.name,
-            details: { reason: "missing_from_lockfile" },
-          }),
-        );
-      }
-
-      for (const warning of [...pkg.licenseWarnings, ...fallbackMetadata.licenseWarnings]) {
-        if (options.includeLicenseText && warning.code === WARNING_CODES.licenseFileReference) {
-          continue;
+        if (!licenseExpression && fallbackMetadata.licenseExpression) {
+          licenseExpression = fallbackMetadata.licenseExpression;
         }
 
-        dependencyWarnings.push({ ...warning, packageName: pkg.name });
-      }
+        if (!homepage && fallbackMetadata.homepage) {
+          homepage = fallbackMetadata.homepage;
+        }
 
-      const bundledLicense = options.includeLicenseText
-        ? await getBundledLicense(projectRoot, pkg.packagePath, pkg.licenseFileHint)
-        : { packageDirectoryExists: false };
+        if (!repository && fallbackMetadata.repository) {
+          repository = fallbackMetadata.repository;
+        }
 
-      if (
-        options.includeLicenseText &&
-        bundledLicense.packageDirectoryExists &&
-        !bundledLicense.licenseText
-      ) {
-        dependencyWarnings.push(
-          createWarning(WARNING_CODES.licenseFileMissing, { packageName: pkg.name }),
-        );
-      }
+        if (!author && fallbackMetadata.author) {
+          author = fallbackMetadata.author;
+        }
 
-      return normalizeDependency({
-        packageManager: "npm",
-        name: pkg.name,
-        version: pkg.version,
-        direct: directDependencyNames.has(pkg.name),
-        licenseExpression,
-        homepage,
-        repository,
-        author,
-        licenseText: bundledLicense.licenseText,
-        licenseSourcePath: bundledLicense.licenseSourcePath,
-        warnings: dependencyWarnings,
-      });
-    }),
+        if (!licenseExpression) {
+          dependencyWarnings.push(
+            createWarning(WARNING_CODES.licenseMissing, {
+              packageName: pkg.name,
+              details: { reason: "missing_from_lockfile" },
+            }),
+          );
+        }
+
+        for (const warning of [...pkg.licenseWarnings, ...fallbackMetadata.licenseWarnings]) {
+          if (options.includeLicenseText && warning.code === WARNING_CODES.licenseFileReference) {
+            continue;
+          }
+
+          dependencyWarnings.push({ ...warning, packageName: pkg.name });
+        }
+
+        const bundledLicense = options.includeLicenseText
+          ? await getBundledLicense(projectRoot, pkg.packagePath, pkg.licenseFileHint)
+          : { packageDirectoryExists: false };
+
+        if (
+          options.includeLicenseText &&
+          bundledLicense.packageDirectoryExists &&
+          !bundledLicense.licenseText
+        ) {
+          dependencyWarnings.push(
+            createWarning(WARNING_CODES.licenseFileMissing, { packageName: pkg.name }),
+          );
+        }
+
+        return normalizeDependency({
+          packageManager: "npm",
+          name: pkg.name,
+          version: pkg.version,
+          direct: directDependencyNames.has(pkg.name),
+          licenseExpression,
+          homepage,
+          repository,
+          author,
+          licenseText: bundledLicense.licenseText,
+          licenseSourcePath: bundledLicense.licenseSourcePath,
+          warnings: dependencyWarnings,
+        });
+      }),
   );
 
   return {

@@ -78,7 +78,8 @@ uln generate
 
 - Text output defaults to `THIRD_PARTY_NOTICES.txt`
 - JSON output defaults to `NOTICE.json`
-- If you do not specify a format, text output is used by default.
+- HTML output defaults to `NOTICE.html`
+- If you do not specify a format, HTML output is used by default.
 - Full dependency license text is included by default when local package license files are available.
 - Use `--dont-include-license-text` to disable license text bundling.
 
@@ -86,8 +87,9 @@ Examples:
 
 ```bash
 uln generate
-uln generate --format json
+uln generate --format text
 uln generate --output notices.txt
+uln generate --format html --output third-party-notices.html
 uln generate --stdout
 uln generate --stdout --format json
 uln generate --config uln.config.json
@@ -131,6 +133,9 @@ Supported fields:
 - `managers.<manager>.packageOverrides.<name>.licenseExpression`: replaces detected license metadata
 - `managers.<manager>.packageOverrides.<name>.homepage`, `repository`, `author`: replace detected package metadata
 - exact override keys win over wildcard keys when both match the same package
+- `output.html.title`: overrides the default HTML page title
+- `output.html.description`: overrides the default HTML page description and supports inline HTML tags
+- `output.html.templatePath`: path to a custom EJS template file (relative to the config file location when not absolute)
 
 ## Output
 
@@ -151,6 +156,31 @@ The text renderer includes:
 The JSON renderer returns normalized dependency records and warnings suitable for later tooling or CI integration.
 
 When license text bundling is enabled (default), dependency records also include `licenseText` and `licenseSourcePath` when available.
+
+### HTML output
+
+The HTML renderer outputs a clean, GitHub Pages-style notice page with collapsible dependency sections.
+
+Both the default template and custom templates are rendered with EJS.
+
+- each dependency is rendered as a section labeled `package@version (SPDX code)`
+- expanded sections include author, homepage, repository, direct dependency status, and package manager information
+- full license text is rendered inside `<pre>` when available
+- description content is rendered as HTML in the default template
+
+You can configure HTML output metadata in `uln.config.json`. **All of these settings are optional**:
+
+```json
+{
+  "output": {
+    "html": {
+      "title": "Third-Party Notices",
+      "description": "Generated using Universal License Notice from discovered package metadata.",
+      "templatePath": "templates/custom-notice.ejs"
+    }
+  }
+}
+```
 
 ## npm support
 

@@ -1,6 +1,8 @@
+import { Command } from "commander";
 import { describe, expect, it } from "vitest";
 import {
   collectGenerateWarnings,
+  registerGenerateCommand,
   shouldIncludeLicenseText,
   shouldWriteToStdout,
   validateGenerateCommandOptions,
@@ -36,6 +38,10 @@ describe("validateGenerateCommandOptions", () => {
     expect(() => validateGenerateCommandOptions({ format: "text", stdout: true })).not.toThrow();
   });
 
+  it("accepts html as an output format", () => {
+    expect(() => validateGenerateCommandOptions({ format: "html" })).not.toThrow();
+  });
+
   it("rejects stdout and output together", () => {
     expect(() =>
       validateGenerateCommandOptions({
@@ -51,7 +57,7 @@ describe("validateGenerateCommandOptions", () => {
       validateGenerateCommandOptions({
         format: "yaml",
       }),
-    ).toThrow('Unsupported output format "yaml". Use "text" or "json".');
+    ).toThrow('Unsupported output format "yaml". Use "html", "text", or "json".');
   });
 });
 
@@ -108,5 +114,17 @@ describe("collectGenerateWarnings", () => {
       "npm package-lock.json is missing; results only include direct dependencies declared in package.json.",
       "npm:left-pad License metadata is missing from package-lock.json.",
     ]);
+  });
+});
+
+describe("registerGenerateCommand", () => {
+  it("defaults --format to html", () => {
+    const program = new Command();
+    registerGenerateCommand(program);
+
+    const generateCommand = program.commands.find((command) => command.name() === "generate");
+    const formatOption = generateCommand?.options.find((option) => option.long === "--format");
+
+    expect(formatOption?.defaultValue).toBe("html");
   });
 });

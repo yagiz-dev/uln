@@ -3,7 +3,9 @@ import { z } from "zod";
 import { fileExists, readJsonFile } from "../utils/fs.js";
 import {
   defaultProjectConfig,
+  type HtmlOutputConfig,
   type LoadedProjectConfig,
+  type OutputConfig,
   type PackageManagerConfig,
   type PackageOverride,
   type ProjectConfig,
@@ -22,8 +24,19 @@ const packageManagerConfigSchema = z.object({
   packageOverrides: z.record(z.string(), packageOverrideSchema).default({}),
 });
 
+const htmlOutputConfigSchema = z.object({
+  title: z.string().min(1).optional(),
+  description: z.string().min(1).optional(),
+  templatePath: z.string().min(1).optional(),
+});
+
 const projectConfigSchema = z.object({
   managers: z.object({ npm: packageManagerConfigSchema.optional() }).default({}),
+  output: z
+    .object({
+      html: htmlOutputConfigSchema.optional(),
+    })
+    .optional(),
 });
 
 export const DEFAULT_CONFIG_FILE_NAME = "uln.config.json";
@@ -63,7 +76,26 @@ function normalizeProjectConfig(config: ProjectConfig): ProjectConfig {
     normalizedManagers[packageManager] = normalizePackageManagerConfig(managerConfig);
   }
 
-  return { managers: normalizedManagers };
+  let normalizedOutput: OutputConfig | undefined;
+
+  if (config.output?.html) {
+    normalizedOutput = {
+      html: normalizeHtmlOutputConfig(config.output.html),
+    };
+  }
+
+  return {
+    managers: normalizedManagers,
+    ...(normalizedOutput ? { output: normalizedOutput } : {}),
+  };
+}
+
+function normalizeHtmlOutputConfig(config: HtmlOutputConfig): HtmlOutputConfig {
+  return {
+    ...(config.title ? { title: config.title } : {}),
+    ...(config.description ? { description: config.description } : {}),
+    ...(config.templatePath ? { templatePath: config.templatePath } : {}),
+  };
 }
 
 export async function loadProjectConfig(

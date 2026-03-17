@@ -1,6 +1,6 @@
 {
   "name": "universal-license-notice",
-  "version": "0.1.1",
+  "version": "0.1.2",
   "description": "Universal License Notice (uln) generates third-party license notices from package manager metadata.",
   "type": "module",
   "bin": {
@@ -40,6 +40,7 @@
   "license": "MIT",
   "dependencies": {
     "commander": "^13.1.0",
+    "ejs": "^5.0.1",
     "spdx-correct": "^3.2.0",
     "spdx-expression-parse": "^4.0.0",
     "spdx-expression-validate": "^2.0.0",
@@ -47,6 +48,7 @@
     "zod": "^3.24.2"
   },
   "devDependencies": {
+    "@types/ejs": "^3.1.5",
     "@types/node": "^22.13.10",
     "@types/spdx-correct": "^3.1.3",
     "@types/spdx-expression-parse": "^3.0.5",

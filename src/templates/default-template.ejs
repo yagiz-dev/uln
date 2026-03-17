@@ -1,0 +1,76 @@
+<!doctype html>
+<html lang="en">
+  <head>
+    <meta charset="utf-8" />
+    <meta name="viewport" content="width=device-width, initial-scale=1" />
+    <title><%= title %></title>
+    <style>section h2,summary{padding:.875rem 1rem}body,h1,pre,section p{margin:0}pre,section h2,summary:hover{background:var(--surface)}:root{color-scheme:light;--text:#24292f;--muted:#59636e;--bg:#ffffff;--surface:#f6f8fa;--border:#d0d7de}.description,.meta{color:var(--muted)}*{box-sizing:border-box}body{font-family:-apple-system,BlinkMacSystemFont,"Segoe UI","Noto Sans",Helvetica,Arial,sans-serif;color:var(--text);background:linear-gradient(180deg,#fff 0,#f8fafc 100%)}main{max-width:960px;margin:0 auto;padding:2rem 1rem 3rem}.header{margin-bottom:1.5rem}h1{font-size:2rem;line-height:1.2}.description{margin:.5rem 0 0}.meta{margin-top:.5rem;font-size:.875rem}section{border:1px solid var(--border);border-radius:10px;background:var(--bg);margin-bottom:1rem;overflow:hidden}section h2{margin:0;border-bottom:1px solid var(--border);font-size:1rem;text-transform:uppercase;letter-spacing:.04em}section p{padding:1rem}details{border-top:1px solid var(--border)}details:first-child{border-top:0}summary{cursor:pointer;font-weight:600}.dependency-content{padding:0 1rem 1rem}ul{margin:.25rem 0 0;padding-left:1.2rem}li{margin:.35rem 0}pre{padding:.75rem;border:1px solid var(--border);border-radius:8px;white-space:pre-wrap;word-break:break-word;font-family:ui-monospace,SFMono-Regular,Menlo,Monaco,Consolas,"Liberation Mono","Courier New",monospace;font-size:.85rem}.license-block h4{margin:.75rem 0 .5rem}a{color:#0969da}</style>
+  </head>
+  <body>
+    <main>
+      <header class="header">
+        <h1><%= title %></h1>
+        <p class="description"><%- description %></p>
+        <p class="meta">Generated at <%= generatedAt %></p>
+      </header>
+
+      <% if (results.length === 0) { %>
+        <p>No supported package managers detected in the current project root.</p>
+      <% } else { %>
+        <% for (const result of results) { %>
+          <section>
+            <h2><%= result.packageManager %></h2>
+
+            <% if (result.dependencies.length === 0) { %>
+              <p>No dependencies found.</p>
+            <% } else { %>
+              <div class="dependency-list">
+                <% for (const dependency of result.dependencies) { %>
+                  <details>
+                    <summary><%= formatDependencySummary(dependency) %></summary>
+                    <div class="dependency-content">
+                      <ul>
+                        <li><strong>Package manager:</strong> <%= dependency.packageManager %></li>
+                        <li>
+                          <strong>Direct dependency:</strong> <%= dependency.direct ? "yes" : "no" %>
+                        </li>
+                        <li><strong>Author:</strong> <%= displayValue(dependency.author) %></li>
+                        <li>
+                          <strong>Homepage:</strong>
+                          <% if (isHttpUrl(dependency.homepage)) { %>
+                            <a href="<%= dependency.homepage %>" target="_blank" rel="noopener noreferrer">
+                              <%= dependency.homepage %>
+                            </a>
+                          <% } else { %>
+                            <%= displayValue(dependency.homepage) %>
+                          <% } %>
+                        </li>
+                        <li>
+                          <strong>Repository:</strong>
+                          <% if (isHttpUrl(dependency.repository)) { %>
+                            <a href="<%= dependency.repository %>" target="_blank" rel="noopener noreferrer">
+                              <%= dependency.repository %>
+                            </a>
+                          <% } else { %>
+                            <%= displayValue(dependency.repository) %>
+                          <% } %>
+                        </li>
+                      </ul>
+
+                      <% if (dependency.licenseText) { %>
+                        <div class="license-block">
+                          <h4>License text</h4>
+                          <pre><%= dependency.licenseText %></pre>
+                        </div>
+                      <% } %>
+                    </div>
+                  </details>
+                <% } %>
+              </div>
+            <% } %>
+          </section>
+        <% } %>
+      <% } %>
+    </main>
+  </body>
+</html>

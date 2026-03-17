@@ -71,4 +71,40 @@ describe("loadProjectConfig", () => {
       await rm(projectRoot, { recursive: true, force: true });
     }
   });
+
+  it("loads output html config values", async () => {
+    const projectRoot = await mkdtemp(join(tmpdir(), "uln-config-"));
+    const configPath = join(projectRoot, DEFAULT_CONFIG_FILE_NAME);
+
+    try {
+      await writeFile(
+        configPath,
+        JSON.stringify({
+          output: {
+            html: {
+              title: "My Notices",
+              description: "Generated notice",
+              templatePath: "templates/notice.ejs",
+            },
+          },
+        }),
+      );
+
+      await expect(loadProjectConfig(projectRoot)).resolves.toEqual({
+        path: configPath,
+        config: {
+          managers: {},
+          output: {
+            html: {
+              title: "My Notices",
+              description: "Generated notice",
+              templatePath: "templates/notice.ejs",
+            },
+          },
+        },
+      });
+    } finally {
+      await rm(projectRoot, { recursive: true, force: true });
+    }
+  });
 });

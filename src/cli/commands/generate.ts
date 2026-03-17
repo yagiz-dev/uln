@@ -1,14 +1,16 @@
 import { writeFile } from "node:fs/promises";
+import { dirname, isAbsolute, resolve } from "node:path";
 import { cwd } from "node:process";
 import type { Command } from "commander";
 import { loadProjectConfig } from "../../config/load.js";
 import { getWarningMessage } from "../../core/warning-codes.js";
 import { resolveDependencies } from "../../core/resolve-dependencies.js";
+import { renderHtml } from "../../renderers/html.js";
 import { renderJson } from "../../renderers/json.js";
 import { renderText } from "../../renderers/text.js";
 import type { ScanResult } from "../../types/dependency.js";
 
-type OutputFormat = "text" | "json";
+type OutputFormat = "html" | "text" | "json";
 
 const ANSI_YELLOW = "\u001b[33m";
 const ANSI_RESET = "\u001b[0m";
@@ -23,7 +25,35 @@ export interface GenerateCommandOptions {
 }
 
 function defaultOutputPath(format: OutputFormat): string {
-  return format === "json" ? "NOTICE.json" : "THIRD_PARTY_NOTICES.txt";
+  if (format === "json") {
+    return "NOTICE.json";
+  }
+
+  if (format === "html") {
+    return "NOTICE.html";
+  }
+
+  return "THIRD_PARTY_NOTICES.txt";
+}
+
+function resolveHtmlTemplatePath(
+  projectRoot: string,
+  configPath: string | undefined,
+  templatePath: string | undefined,
+): string | undefined {
+  if (!templatePath) {
+    return undefined;
+  }
+
+  if (isAbsolute(templatePath)) {
+    return templatePath;
+  }
+
+  if (configPath) {
+    return resolve(dirname(configPath), templatePath);
+  }
+
+  return resolve(projectRoot, templatePath);
 }
 
 export function shouldWriteToStdout(options: GenerateCommandOptions): boolean {
@@ -35,8 +65,10 @@ export function shouldIncludeLicenseText(options: GenerateCommandOptions): boole
 }
 
 export function validateGenerateCommandOptions(options: GenerateCommandOptions): void {
-  if (options.format !== "text" && options.format !== "json") {
-    throw new Error(`Unsupported output format "${options.format}". Use "text" or "json".`);
+  if (options.format !== "html" && options.format !== "text" && options.format !== "json") {
+    throw new Error(
+      `Unsupported output format "${options.format}". Use "html", "text", or "json".`,
+    );
   }
 
   if (options.stdout && options.output) {
@@ -91,7 +123,7 @@ export function registerGenerateCommand(program: Command): void {
   program
     .command("generate")
     .description("Generate a third-party notice file from the current project root")
-    .option("--format <format>", "Output format: text or json", "text")
+    .option("--format <format>", "Output format: html, text, json", "html")
     .option("--output <path>", "Write output to the given path")
     .option("--config <path>", "Load configuration from the given JSON file")
     .option("--dont-include-license-text", "Skip bundling full license text for dependencies")
@@ -101,11 +133,26 @@ export function registerGenerateCommand(program: Command): void {
       const format = options.format as OutputFormat;
       const loadedConfig = await loadProjectConfig(cwd(), options.config);
       const includeLicenseText = shouldIncludeLicenseText(options);
+      const htmlConfig = loadedConfig.config.output?.html;
+      const htmlTemplatePath = resolveHtmlTemplatePath(
+        cwd(),
+        loadedConfig.path,
+        htmlConfig?.templatePath,
+      );
 
       const results = await resolveDependencies(cwd(), loadedConfig.config, {
         includeLicenseText,
       });
-      const output = format === "json" ? renderJson(results) : renderText(results);
+      const output =
+        format === "json"
+          ? renderJson(results)
+          : format === "html"
+            ? renderHtml(results, {
+                title: htmlConfig?.title,
+                description: htmlConfig?.description,
+                templatePath: htmlTemplatePath,
+              })
+            : renderText(results);
 
       if (shouldWriteToStdout(options)) {
         process.stdout.write(`${output}\n`);

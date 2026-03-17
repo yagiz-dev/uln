@@ -19,3 +19,6 @@ await build({
 });
 
 await cp(resolve(projectRoot, "LICENSE"), resolve(projectRoot, "dist", "LICENSE"));
+await cp(resolve(projectRoot, "src", "templates"), resolve(projectRoot, "dist", "templates"), {
+  recursive: true,
+});

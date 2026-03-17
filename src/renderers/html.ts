@@ -2,6 +2,7 @@ import { readFileSync } from "node:fs";
 import { dirname, resolve } from "node:path";
 import { fileURLToPath } from "node:url";
 import ejs from "ejs";
+import type { HideableOutputField } from "../config/types.js";
 import type { ScanResult } from "../types/dependency.js";
 
 const DEFAULT_TITLE = "Third-Party Notices";
@@ -13,6 +14,7 @@ export interface RenderHtmlOptions {
   description?: string;
   templatePath?: string;
   generatedAt?: Date;
+  hideFields?: HideableOutputField[];
 }
 
 interface LoadedTemplate {
@@ -42,8 +44,16 @@ function loadTemplate(templatePath?: string): LoadedTemplate {
 
 function formatDependencySummary(
   dependency: Pick<ScanResult["dependencies"][number], "name" | "version" | "licenseExpression">,
+  hideFields: Set<HideableOutputField>,
 ): string {
-  return `${dependency.name}@${dependency.version} (${dependency.licenseExpression ?? "Unknown"})`;
+  const withVersion = hideFields.has("version")
+    ? dependency.name
+    : `${dependency.name}@${dependency.version}`;
+  if (hideFields.has("licenseExpression")) {
+    return withVersion;
+  }
+
+  return `${withVersion} (${dependency.licenseExpression ?? "Unknown"})`;
 }
 
 function displayValue(value?: string): string {
@@ -56,6 +66,8 @@ function isHttpUrl(value?: string): boolean {
 
 export function renderHtml(results: ScanResult[], options: RenderHtmlOptions = {}): string {
   const template = loadTemplate(options.templatePath);
+  const hideFields = new Set(options.hideFields ?? []);
+  const shouldHideField = (field: HideableOutputField): boolean => hideFields.has(field);
 
   return ejs.render(
     template.source,
@@ -65,7 +77,13 @@ export function renderHtml(results: ScanResult[], options: RenderHtmlOptions = {
       generatedAt: (options.generatedAt ?? new Date()).toISOString(),
       results,
       displayValue,
-      formatDependencySummary,
+      formatDependencySummary: (
+        dependency: Pick<
+          ScanResult["dependencies"][number],
+          "name" | "version" | "licenseExpression"
+        >,
+      ) => formatDependencySummary(dependency, hideFields),
+      shouldHideField,
       isHttpUrl,
     },
     {

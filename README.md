@@ -80,6 +80,7 @@ uln generate
 - Full dependency license text is included by default when local package license files are available.
 - Use `--dont-include-license-text` to disable license text bundling.
 - Use `--exclude-dev` to exclude development dependencies (for managers that can identify them).
+- Use `--hide-fields version,homepage` to hide specific dependency fields for this run.
 
 Examples:
 
@@ -91,6 +92,7 @@ uln generate --format html --output third-party-notices.html
 uln generate --stdout
 uln generate --stdout --format json
 uln generate --exclude-dev
+uln generate --format html --hide-fields version,homepage,repository
 uln generate --config uln.config.json
 ```
 
@@ -140,9 +142,23 @@ Supported fields:
 - `managers.<manager>.packageOverrides.<name>.licenseExpression`: replaces detected license metadata
 - `managers.<manager>.packageOverrides.<name>.homepage`, `repository`, `author`: replace detected package metadata
 - exact override keys win over wildcard keys when both match the same package
+- `output.hideFields`: globally hide dependency fields from rendered output
 - `output.html.title`: overrides the default HTML page title
 - `output.html.description`: overrides the default HTML page description and supports inline HTML tags
 - `output.html.templatePath`: path to a custom EJS template file (relative to the config file location when not absolute)
+- `output.<format>.hideFields`: hide fields for `html`, `text`, or `json` output specifically
+- `--hide-fields`: CLI override for hide fields (comma-separated), takes precedence over config for that command
+
+Supported `hideFields` values:
+
+- `version`
+- `homepage`
+- `repository`
+- `author`
+- `direct`
+- `licenseExpression`
+- `licenseText`
+- `licenseSourcePath`
 
 ## Output
 
@@ -183,7 +199,15 @@ You can configure HTML output metadata in `uln.config.json`. **All of these sett
     "html": {
       "title": "Third-Party Notices",
       "description": "Generated using Universal License Notice from discovered package metadata.",
-      "templatePath": "templates/custom-notice.ejs"
+      "templatePath": "templates/custom-notice.ejs",
+      "hideFields": ["homepage"]
+    },
+    "hideFields": ["repository"],
+    "text": {
+      "hideFields": ["author"]
+    },
+    "json": {
+      "hideFields": ["licenseText", "licenseSourcePath"]
     }
   }
 }

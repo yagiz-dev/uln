@@ -2,7 +2,10 @@ import { Command } from "commander";
 import { describe, expect, it } from "vitest";
 import {
   collectGenerateWarnings,
+  parseHideFieldsOption,
   registerGenerateCommand,
+  resolveEffectiveHideFields,
+  resolveHideFieldsForFormat,
   shouldIncludeDevDependencies,
   shouldIncludeLicenseText,
   shouldWriteToStdout,
@@ -74,6 +77,28 @@ describe("validateGenerateCommandOptions", () => {
         format: "yaml",
       }),
     ).toThrow('Unsupported output format "yaml". Use "html", "text", or "json".');
+  });
+
+  it("rejects unsupported hide fields", () => {
+    expect(() =>
+      validateGenerateCommandOptions({
+        format: "text",
+        hideFields: "packageName",
+      }),
+    ).toThrow("Unsupported --hide-fields value(s): packageName.");
+  });
+});
+
+describe("parseHideFieldsOption", () => {
+  it("returns undefined when no CLI hide fields are provided", () => {
+    expect(parseHideFieldsOption(undefined)).toBeUndefined();
+  });
+
+  it("parses, trims, and deduplicates hide fields", () => {
+    expect(parseHideFieldsOption(" repository, homepage ,repository ")).toEqual([
+      "repository",
+      "homepage",
+    ]);
   });
 });
 
@@ -154,5 +179,63 @@ describe("registerGenerateCommand", () => {
     );
 
     expect(excludeDevOption).toBeDefined();
+  });
+
+  it("registers --hide-fields option", () => {
+    const program = new Command();
+    registerGenerateCommand(program);
+
+    const generateCommand = program.commands.find((command) => command.name() === "generate");
+    const hideFieldsOption = generateCommand?.options.find(
+      (option) => option.long === "--hide-fields",
+    );
+
+    expect(hideFieldsOption).toBeDefined();
+  });
+});
+
+describe("resolveHideFieldsForFormat", () => {
+  it("merges global and format-specific hide fields", () => {
+    expect(
+      resolveHideFieldsForFormat(
+        {
+          managers: {},
+          output: {
+            hideFields: ["repository", "homepage"],
+            html: {
+              hideFields: ["author", "repository"],
+            },
+          },
+        },
+        "html",
+      ),
+    ).toEqual(["repository", "homepage", "author"]);
+  });
+
+  it("returns empty list when hideFields are not configured", () => {
+    expect(resolveHideFieldsForFormat({ managers: {} }, "text")).toEqual([]);
+  });
+});
+
+describe("resolveEffectiveHideFields", () => {
+  it("uses CLI hide fields as an override", () => {
+    expect(
+      resolveEffectiveHideFields(
+        {
+          format: "html",
+          hideFields: "version,homepage",
+        },
+        {
+          managers: {},
+          output: {
+            hideFields: ["repository"],
+            html: {
+              hideFields: ["author"],
+            },
+          },
+        },
+        "html",
+      ),
+    ).toEqual(["version", "homepage"]);
   });
 });

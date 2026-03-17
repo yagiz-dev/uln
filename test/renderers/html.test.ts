@@ -112,4 +112,36 @@ describe("renderHtml", () => {
     expect(output).toContain("<em>tooling</em>");
     expect(output).not.toContain("&lt;a href");
   });
+
+  it("hides configured fields from html output", () => {
+    const output = renderHtml(
+      [
+        {
+          packageManager: "npm",
+          warnings: [],
+          dependencies: [
+            {
+              packageManager: "npm",
+              name: "chalk",
+              version: "5.4.1",
+              direct: true,
+              licenseExpression: "MIT",
+              homepage: "https://github.com/chalk/chalk",
+              repository: "https://github.com/chalk/chalk",
+              author: "Chalk Team",
+              warnings: [],
+            },
+          ],
+        },
+      ],
+      {
+        hideFields: ["version", "homepage", "repository", "licenseExpression"],
+        generatedAt: new Date("2025-01-01T00:00:00.000Z"),
+      },
+    );
+
+    expect(output).toContain("<summary>chalk</summary>");
+    expect(output).not.toContain("<strong>Homepage:</strong>");
+    expect(output).not.toContain("<strong>Repository:</strong>");
+  });
 });

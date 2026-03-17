@@ -1,7 +1,19 @@
 import type { ScanResult } from "../types/dependency.js";
+import type { HideableOutputField } from "../config/types.js";
 import { getWarningMessage } from "../core/warning-codes.js";
 
-function renderDependencyBlock(result: ScanResult): string {
+export interface RenderTextOptions {
+  hideFields?: HideableOutputField[];
+}
+
+function shouldHideField(
+  hideFields: Set<HideableOutputField>,
+  field: HideableOutputField,
+): boolean {
+  return hideFields.has(field);
+}
+
+function renderDependencyBlock(result: ScanResult, hideFields: Set<HideableOutputField>): string {
   if (result.dependencies.length === 0) {
     return `Package manager: ${result.packageManager}\nNo dependencies found.`;
   }
@@ -11,17 +23,30 @@ function renderDependencyBlock(result: ScanResult): string {
     ...result.dependencies.flatMap((dependency) => [
       "",
       `Package: ${dependency.name}`,
-      `Version: ${dependency.version}`,
-      `Direct: ${dependency.direct ? "yes" : "no"}`,
-      `License: ${dependency.licenseExpression ?? "Unknown"}`,
-      `Repository: ${dependency.repository ?? "Unknown"}`,
-      `Homepage: ${dependency.homepage ?? "Unknown"}`,
-      `Author: ${dependency.author ?? "Unknown"}`,
+      ...(shouldHideField(hideFields, "version") ? [] : [`Version: ${dependency.version}`]),
+      ...(shouldHideField(hideFields, "direct")
+        ? []
+        : [`Direct: ${dependency.direct ? "yes" : "no"}`]),
+      ...(shouldHideField(hideFields, "licenseExpression")
+        ? []
+        : [`License: ${dependency.licenseExpression ?? "Unknown"}`]),
+      ...(shouldHideField(hideFields, "repository")
+        ? []
+        : [`Repository: ${dependency.repository ?? "Unknown"}`]),
+      ...(shouldHideField(hideFields, "homepage")
+        ? []
+        : [`Homepage: ${dependency.homepage ?? "Unknown"}`]),
+      ...(shouldHideField(hideFields, "author")
+        ? []
+        : [`Author: ${dependency.author ?? "Unknown"}`]),
       ...(dependency.licenseText
         ? [
-            `License file: ${dependency.licenseSourcePath ?? "Unknown"}`,
-            "License text:",
-            dependency.licenseText,
+            ...(shouldHideField(hideFields, "licenseSourcePath")
+              ? []
+              : [`License file: ${dependency.licenseSourcePath ?? "Unknown"}`]),
+            ...(shouldHideField(hideFields, "licenseText")
+              ? []
+              : ["License text:", dependency.licenseText]),
           ]
         : []),
     ]),
@@ -46,12 +71,14 @@ function renderWarnings(result: ScanResult): string {
   return ["", "Warnings:", ...warnings].join("\n");
 }
 
-export function renderText(results: ScanResult[]): string {
+export function renderText(results: ScanResult[], options: RenderTextOptions = {}): string {
   if (results.length === 0) {
     return "No supported package managers detected in the current project root.";
   }
 
+  const hideFields = new Set(options.hideFields ?? []);
+
   return results
-    .map((result) => `${renderDependencyBlock(result)}${renderWarnings(result)}`)
+    .map((result) => `${renderDependencyBlock(result, hideFields)}${renderWarnings(result)}`)
     .join("\n\n");
 }

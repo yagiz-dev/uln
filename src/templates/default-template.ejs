@@ -31,33 +31,41 @@
                     <div class="dependency-content">
                       <ul>
                         <li><strong>Package manager:</strong> <%= dependency.packageManager %></li>
-                        <li>
-                          <strong>Direct dependency:</strong> <%= dependency.direct ? "yes" : "no" %>
-                        </li>
-                        <li><strong>Author:</strong> <%= displayValue(dependency.author) %></li>
-                        <li>
-                          <strong>Homepage:</strong>
-                          <% if (isHttpUrl(dependency.homepage)) { %>
-                            <a href="<%= dependency.homepage %>" target="_blank" rel="noopener noreferrer">
-                              <%= dependency.homepage %>
-                            </a>
-                          <% } else { %>
-                            <%= displayValue(dependency.homepage) %>
-                          <% } %>
-                        </li>
-                        <li>
-                          <strong>Repository:</strong>
-                          <% if (isHttpUrl(dependency.repository)) { %>
-                            <a href="<%= dependency.repository %>" target="_blank" rel="noopener noreferrer">
-                              <%= dependency.repository %>
-                            </a>
-                          <% } else { %>
-                            <%= displayValue(dependency.repository) %>
-                          <% } %>
-                        </li>
+                        <% if (!shouldHideField("direct")) { %>
+                          <li>
+                            <strong>Direct dependency:</strong> <%= dependency.direct ? "yes" : "no" %>
+                          </li>
+                        <% } %>
+                        <% if (!shouldHideField("author")) { %>
+                          <li><strong>Author:</strong> <%= displayValue(dependency.author) %></li>
+                        <% } %>
+                        <% if (!shouldHideField("homepage")) { %>
+                          <li>
+                            <strong>Homepage:</strong>
+                            <% if (isHttpUrl(dependency.homepage)) { %>
+                              <a href="<%= dependency.homepage %>" target="_blank" rel="noopener noreferrer">
+                                <%= dependency.homepage %>
+                              </a>
+                            <% } else { %>
+                              <%= displayValue(dependency.homepage) %>
+                            <% } %>
+                          </li>
+                        <% } %>
+                        <% if (!shouldHideField("repository")) { %>
+                          <li>
+                            <strong>Repository:</strong>
+                            <% if (isHttpUrl(dependency.repository)) { %>
+                              <a href="<%= dependency.repository %>" target="_blank" rel="noopener noreferrer">
+                                <%= dependency.repository %>
+                              </a>
+                            <% } else { %>
+                              <%= displayValue(dependency.repository) %>
+                            <% } %>
+                          </li>
+                        <% } %>
                       </ul>
 
-                      <% if (dependency.licenseText) { %>
+                      <% if (dependency.licenseText && !shouldHideField("licenseText")) { %>
                         <div class="license-block">
                           <h4>License text</h4>
                           <pre><%= dependency.licenseText %></pre>

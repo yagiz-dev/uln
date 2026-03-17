@@ -123,4 +123,70 @@ describe("loadProjectConfig", () => {
       await rm(projectRoot, { recursive: true, force: true });
     }
   });
+
+  it("loads and deduplicates global and per-format hideFields", async () => {
+    const projectRoot = await mkdtemp(join(tmpdir(), "uln-config-"));
+    const configPath = join(projectRoot, DEFAULT_CONFIG_FILE_NAME);
+
+    try {
+      await writeFile(
+        configPath,
+        JSON.stringify({
+          output: {
+            hideFields: ["repository", "repository", "homepage"],
+            html: {
+              hideFields: ["author", "homepage", "author"],
+            },
+            text: {
+              hideFields: ["version", "version"],
+            },
+            json: {
+              hideFields: ["licenseText", "licenseSourcePath", "licenseText"],
+            },
+          },
+        }),
+      );
+
+      await expect(loadProjectConfig(projectRoot)).resolves.toEqual({
+        path: configPath,
+        config: {
+          managers: {},
+          output: {
+            hideFields: ["repository", "homepage"],
+            html: {
+              hideFields: ["author", "homepage"],
+            },
+            text: {
+              hideFields: ["version"],
+            },
+            json: {
+              hideFields: ["licenseText", "licenseSourcePath"],
+            },
+          },
+        },
+      });
+    } finally {
+      await rm(projectRoot, { recursive: true, force: true });
+    }
+  });
+
+  it("throws for unsupported hideFields values", async () => {
+    const projectRoot = await mkdtemp(join(tmpdir(), "uln-config-"));
+    const configPath = join(projectRoot, DEFAULT_CONFIG_FILE_NAME);
+
+    try {
+      await writeFile(
+        configPath,
+        JSON.stringify({
+          output: {
+            hideFields: ["packageName"],
+          },
+        }),
+      );
+
+      await expect(loadProjectConfig(projectRoot)).rejects.toThrow();
+    } finally {
+      await rm(projectRoot, { recursive: true, force: true });
+    }
+  });
 });

@@ -3,9 +3,12 @@ import { z } from "zod";
 import { fileExists, readJsonFile } from "../utils/fs.js";
 import {
   defaultProjectConfig,
+  HIDEABLE_OUTPUT_FIELDS,
   type HtmlOutputConfig,
+  type HideableOutputField,
   type LoadedProjectConfig,
   type OutputConfig,
+  type OutputFormatConfig,
   type PackageManagerConfig,
   type PackageOverride,
   type ProjectConfig,
@@ -28,6 +31,11 @@ const htmlOutputConfigSchema = z.object({
   title: z.string().min(1).optional(),
   description: z.string().min(1).optional(),
   templatePath: z.string().min(1).optional(),
+  hideFields: z.array(z.enum(HIDEABLE_OUTPUT_FIELDS)).optional(),
+});
+
+const outputFormatConfigSchema = z.object({
+  hideFields: z.array(z.enum(HIDEABLE_OUTPUT_FIELDS)).optional(),
 });
 
 const projectConfigSchema = z.object({
@@ -39,7 +47,10 @@ const projectConfigSchema = z.object({
     .default({}),
   output: z
     .object({
+      hideFields: z.array(z.enum(HIDEABLE_OUTPUT_FIELDS)).optional(),
       html: htmlOutputConfigSchema.optional(),
+      text: outputFormatConfigSchema.optional(),
+      json: outputFormatConfigSchema.optional(),
     })
     .optional(),
 });
@@ -83,10 +94,19 @@ function normalizeProjectConfig(config: ProjectConfig): ProjectConfig {
 
   let normalizedOutput: OutputConfig | undefined;
 
-  if (config.output?.html) {
+  if (config.output) {
     normalizedOutput = {
-      html: normalizeHtmlOutputConfig(config.output.html),
+      ...(config.output.hideFields
+        ? { hideFields: normalizeHideFields(config.output.hideFields) }
+        : {}),
+      ...(config.output.html ? { html: normalizeHtmlOutputConfig(config.output.html) } : {}),
+      ...(config.output.text ? { text: normalizeOutputFormatConfig(config.output.text) } : {}),
+      ...(config.output.json ? { json: normalizeOutputFormatConfig(config.output.json) } : {}),
     };
+
+    if (Object.keys(normalizedOutput).length === 0) {
+      normalizedOutput = undefined;
+    }
   }
 
   return {
@@ -100,7 +120,18 @@ function normalizeHtmlOutputConfig(config: HtmlOutputConfig): HtmlOutputConfig {
     ...(config.title ? { title: config.title } : {}),
     ...(config.description ? { description: config.description } : {}),
     ...(config.templatePath ? { templatePath: config.templatePath } : {}),
+    ...(config.hideFields ? { hideFields: normalizeHideFields(config.hideFields) } : {}),
   };
+}
+
+function normalizeOutputFormatConfig(config: OutputFormatConfig): OutputFormatConfig {
+  return {
+    ...(config.hideFields ? { hideFields: normalizeHideFields(config.hideFields) } : {}),
+  };
+}
+
+function normalizeHideFields(fields: HideableOutputField[]): HideableOutputField[] {
+  return [...new Set(fields)];
 }
 
 export async function loadProjectConfig(

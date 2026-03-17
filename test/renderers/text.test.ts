@@ -55,4 +55,38 @@ Warnings:
       ]),
     ).toBe("Package manager: npm\nNo dependencies found.");
   });
+
+  it("hides configured fields from text output", () => {
+    expect(
+      renderText(
+        [
+          {
+            packageManager: "npm",
+            warnings: [],
+            dependencies: [
+              {
+                packageManager: "npm",
+                name: "chalk",
+                version: "5.4.1",
+                direct: true,
+                licenseExpression: "MIT",
+                homepage: "https://example.com",
+                repository: "https://example.com/repo",
+                author: "Example",
+                warnings: [],
+              },
+            ],
+          },
+        ],
+        {
+          hideFields: ["version", "homepage", "repository"],
+        },
+      ),
+    ).toBe(`Package manager: npm
+
+Package: chalk
+Direct: yes
+License: MIT
+Author: Example`);
+  });
 });

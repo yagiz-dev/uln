@@ -4,7 +4,9 @@ import { renderScanReport } from "../../src/renderers/scan.js";
 
 describe("renderScanReport", () => {
   it("renders an empty discovery list", () => {
-    expect(renderScanReport([])).toBe("No supported package manifests found in the current project root.");
+    expect(renderScanReport([])).toBe(
+      "No supported package manifests found in the current project root.",
+    );
   });
 
   it("renders manifest locations and notes", () => {
@@ -29,18 +31,25 @@ describe("renderScanReport", () => {
   it("renders unsupported package managers in the same table", () => {
     const output = renderScanReport([
       {
-        packageManager: "composer",
+        packageManager: "pypi",
         status: "unsupported",
         projectRoot: cwd(),
         manifests: [
-          { kind: "manifest", path: "composer.json" },
-          { kind: "lockfile", path: "composer.lock" },
+          { kind: "manifest", path: "pyproject.toml" },
+          { kind: "lockfile", path: "poetry.lock" },
         ],
-        notes: [{ level: "info", message: "composer manifests were found, but this adapter has not been implemented yet." }],
+        notes: [
+          {
+            level: "info",
+            message: "pypi manifests were found, but this adapter has not been implemented yet.",
+          },
+        ],
       },
     ]);
 
-    expect(output).toContain("composer        | unsupported | composer.json, composer.lock");
-    expect(output).toContain("- composer (info): composer manifests were found, but this adapter has not been implemented yet.");
+    expect(output).toContain("pypi            | unsupported | pyproject.toml, poetry.lock");
+    expect(output).toContain(
+      "- pypi (info): pypi manifests were found, but this adapter has not been implemented yet.",
+    );
   });
 });

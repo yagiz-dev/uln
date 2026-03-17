@@ -1,5 +1,5 @@
-export type SupportedPackageManager = "npm";
+export type SupportedPackageManager = "npm" | "composer";
 
-export type KnownPackageManager = SupportedPackageManager | "composer" | "pypi";
+export type KnownPackageManager = SupportedPackageManager | "pypi";
 
 export type PackageManagerStatus = "supported" | "unsupported";

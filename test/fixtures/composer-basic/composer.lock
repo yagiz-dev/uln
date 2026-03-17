@@ -1,0 +1,36 @@
+{
+  "packages": [
+    {
+      "name": "monolog/monolog",
+      "version": "3.7.0",
+      "license": [
+        "MIT"
+      ],
+      "homepage": "https://github.com/Seldaek/monolog",
+      "source": {
+        "url": "https://github.com/Seldaek/monolog"
+      },
+      "authors": [
+        {
+          "name": "Jordi Boggiano"
+        }
+      ]
+    }
+  ],
+  "packages-dev": [
+    {
+      "name": "phpunit/phpunit",
+      "version": "10.5.46",
+      "license": "BSD-3-Clause",
+      "homepage": "https://phpunit.de/",
+      "source": {
+        "url": "https://github.com/sebastianbergmann/phpunit"
+      },
+      "authors": [
+        {
+          "name": "Sebastian Bergmann"
+        }
+      ]
+    }
+  ]
+}

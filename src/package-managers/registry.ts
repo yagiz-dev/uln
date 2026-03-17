@@ -1,4 +1,5 @@
 import type { PackageManagerAdapter } from "../adapters/types.js";
+import { composerAdapter } from "../adapters/composer/index.js";
 import { npmAdapter } from "../adapters/npm/index.js";
 import type { ManifestRecord } from "../types/discovery.js";
 import type { KnownPackageManager } from "../types/package-manager.js";
@@ -28,6 +29,7 @@ export const packageManagerRegistry: PackageManagerRegistryEntry[] = [
       { kind: "manifest", path: "composer.json" },
       { kind: "lockfile", path: "composer.lock" },
     ],
+    adapter: composerAdapter,
   },
   {
     name: "pypi",
@@ -42,7 +44,5 @@ export const packageManagerRegistry: PackageManagerRegistryEntry[] = [
 export function getSupportedPackageManagers(
   registry: PackageManagerRegistryEntry[] = packageManagerRegistry,
 ): SupportedPackageManagerRegistryEntry[] {
-  return registry.flatMap((entry) =>
-    entry.adapter ? [{ ...entry, adapter: entry.adapter }] : [],
-  );
+  return registry.flatMap((entry) => (entry.adapter ? [{ ...entry, adapter: entry.adapter }] : []));
 }

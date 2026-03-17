@@ -1,0 +1,9 @@
+{
+  "packages": [
+    {
+      "name": "mystery/package",
+      "version": "1.0.0"
+    }
+  ],
+  "packages-dev": []
+}

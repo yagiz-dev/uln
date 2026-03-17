@@ -81,7 +81,7 @@ describe("collectGenerateWarnings", () => {
 
     expect(warnings).toEqual([
       "npm package-lock.json is missing; results only include direct dependencies declared in package.json.",
-      "npm:left-pad License metadata is missing from package-lock.json.",
+      "npm:left-pad License metadata is missing from the lockfile.",
     ]);
   });
 
@@ -112,7 +112,7 @@ describe("collectGenerateWarnings", () => {
 
     expect(warnings).toEqual([
       "npm package-lock.json is missing; results only include direct dependencies declared in package.json.",
-      "npm:left-pad License metadata is missing from package-lock.json.",
+      "npm:left-pad License metadata is missing from the lockfile.",
     ]);
   });
 });

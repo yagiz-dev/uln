@@ -1,0 +1,11 @@
+{
+  "name": "acme/composer-no-lockfile",
+  "require": {
+    "php": "^8.3",
+    "symfony/console": "^7.0"
+  },
+  "require-dev": {
+    "phpunit/phpunit": "^10.0",
+    "ext-json": "*"
+  }
+}

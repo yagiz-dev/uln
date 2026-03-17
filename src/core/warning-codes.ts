@@ -1,4 +1,6 @@
 export const WARNING_CODES = {
+  composerLockfileMissing: "composer_lockfile_missing",
+  composerVersionUnknown: "composer_version_unknown",
   licenseFileReference: "license_file_reference",
   licenseHeuristicallyNormalized: "license_heuristically_normalized",
   licenseFileMissing: "license_file_missing",
@@ -28,6 +30,10 @@ export type WarningDetails = WarningDetailsByCode[keyof WarningDetailsByCode];
 
 export function getWarningMessage(input: { code: WarningCode; details?: WarningDetails }): string {
   switch (input.code) {
+    case WARNING_CODES.composerLockfileMissing:
+      return "composer.lock is missing; results only include direct dependencies declared in composer.json.";
+    case WARNING_CODES.composerVersionUnknown:
+      return "Dependency version is unknown without composer.lock.";
     case WARNING_CODES.licenseFileReference:
       return "License uses a file reference instead of a normalized SPDX expression.";
     case WARNING_CODES.licenseHeuristicallyNormalized:
@@ -38,8 +44,8 @@ export function getWarningMessage(input: { code: WarningCode; details?: WarningD
       return (
         input.details as WarningDetailsByCode[typeof WARNING_CODES.licenseMissing] | undefined
       )?.reason === "without_lockfile"
-        ? "License metadata is unavailable without package-lock.json."
-        : "License metadata is missing from package-lock.json.";
+        ? "License metadata is unavailable without a lockfile."
+        : "License metadata is missing from the lockfile.";
     case WARNING_CODES.licenseNotNormalized:
       return "License metadata could not be normalized to a known SPDX-style identifier.";
     case WARNING_CODES.npmLockfileMissing:

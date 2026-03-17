@@ -1,0 +1,6 @@
+{
+  "name": "acme/composer-missing-license",
+  "require": {
+    "mystery/package": "^1.0"
+  }
+}

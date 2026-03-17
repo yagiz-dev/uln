@@ -31,7 +31,12 @@ const htmlOutputConfigSchema = z.object({
 });
 
 const projectConfigSchema = z.object({
-  managers: z.object({ npm: packageManagerConfigSchema.optional() }).default({}),
+  managers: z
+    .object({
+      npm: packageManagerConfigSchema.optional(),
+      composer: packageManagerConfigSchema.optional(),
+    })
+    .default({}),
   output: z
     .object({
       html: htmlOutputConfigSchema.optional(),

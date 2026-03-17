@@ -31,7 +31,7 @@ describe("discoverManagers", () => {
     }
   });
 
-  it("reports unsupported package managers when their manifests are present", async () => {
+  it("marks composer projects as supported when manifests are present", async () => {
     const projectRoot = await mkdtemp(join(tmpdir(), "uln-discovery-"));
 
     try {
@@ -41,19 +41,13 @@ describe("discoverManagers", () => {
       await expect(discoverManagers(projectRoot)).resolves.toEqual([
         {
           packageManager: "composer",
-          status: "unsupported",
+          status: "supported",
           projectRoot,
           manifests: [
             { kind: "manifest", path: "composer.json" },
             { kind: "lockfile", path: "composer.lock" },
           ],
-          notes: [
-            {
-              level: "info",
-              message:
-                "composer manifests were found, but this adapter has not been implemented yet.",
-            },
-          ],
+          notes: [],
         },
       ]);
     } finally {

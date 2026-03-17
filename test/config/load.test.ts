@@ -36,6 +36,14 @@ describe("loadProjectConfig", () => {
                 },
               },
             },
+            composer: {
+              excludePackages: ["vendor/package", "vendor/package"],
+              packageOverrides: {
+                "vendor/other": {
+                  licenseExpression: "MIT",
+                },
+              },
+            },
           },
         }),
       );
@@ -48,6 +56,14 @@ describe("loadProjectConfig", () => {
               excludePackages: ["left-pad"],
               packageOverrides: {
                 chalk: {
+                  licenseExpression: "MIT",
+                },
+              },
+            },
+            composer: {
+              excludePackages: ["vendor/package"],
+              packageOverrides: {
+                "vendor/other": {
                   licenseExpression: "MIT",
                 },
               },

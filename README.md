@@ -4,16 +4,16 @@ Universal License Notice (`uln`) is a CLI for discovering package manager manife
 
 Its goal is to provide one tool for generating license notices across multiple package managers, saving you from having to use different tools for each manager.
 
-The first supported package manager is [npm](https://npmjs.com), with additional adapters planned over time.
+Supported package managers include [npm](https://npmjs.com) and [Composer](https://getcomposer.org), with additional adapters planned over time.
 
 ## Status
 
 The project is currently experimental, but available on npm for early use and feedback.
 
 - Supported package managers:
+  - `composer`
   - `npm`
 - Detected by `uln` but not yet supported:
-  - `composer`
   - `pypi`
 
 Current scope:
@@ -61,11 +61,8 @@ Project root: /path/to/project
 
 Package manager | Support     | Manifest files
 ----------------+-------------+--------------------------------
-composer        | unsupported | composer.json, composer.lock
+composer        | supported   | composer.json, composer.lock
 npm             | supported   | package.json, package-lock.json
-
-Notes:
-- composer (info): composer manifests were found, but this adapter has not been implemented yet.
 ```
 
 ### `generate`
@@ -120,6 +117,14 @@ Supported fields:
           "repository": "https://github.com/chalk/chalk"
         },
         "@scope/*": {
+          "licenseExpression": "MIT"
+        }
+      }
+    },
+    "composer": {
+      "excludePackages": ["symfony/*"],
+      "packageOverrides": {
+        "monolog/monolog": {
           "licenseExpression": "MIT"
         }
       }
@@ -194,6 +199,18 @@ The current npm adapter:
 
 If `package.json` exists without `package-lock.json`, generation falls back to direct dependencies with incomplete metadata and emits warnings.
 
+## Composer support
+
+The current Composer adapter:
+
+- detects `composer.json` and `composer.lock`
+- reads dependencies from both `packages` and `packages-dev` in `composer.lock`
+- marks direct dependencies using `require` and `require-dev` from `composer.json`
+- respects Composer `config.vendor-dir` when searching installed package license files
+- emits warnings when license metadata is missing or could not be normalized cleanly
+
+If `composer.json` exists without `composer.lock`, generation falls back to direct dependencies with incomplete metadata and emits warnings.
+
 ## License normalization
 
 The current normalization layer handles a few common cases:
@@ -219,7 +236,6 @@ npm run build
 
 Planned next steps:
 
-- Composer adapter
 - PyPI adapter
 - monorepo and manually provided manifest-path support
 - expand configuration support beyond excludes and per-package overrides

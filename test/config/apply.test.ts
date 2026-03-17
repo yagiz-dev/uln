@@ -192,4 +192,49 @@ describe("applyProjectConfig", () => {
       }),
     ]);
   });
+
+  it("applies composer-specific package overrides", () => {
+    const results: ScanResult[] = [
+      {
+        packageManager: "composer",
+        warnings: [],
+        dependencies: [
+          {
+            packageManager: "composer",
+            name: "symfony/console",
+            version: "v7.2.0",
+            direct: true,
+            warnings: [
+              {
+                code: "license_missing",
+                details: { reason: "missing_from_lockfile" },
+                packageName: "symfony/console",
+              },
+            ],
+          },
+        ],
+      },
+    ];
+
+    const configured = applyProjectConfig(results, {
+      managers: {
+        composer: {
+          excludePackages: [],
+          packageOverrides: {
+            "symfony/*": {
+              licenseExpression: "MIT",
+            },
+          },
+        },
+      },
+    });
+
+    expect(configured[0]?.dependencies).toEqual([
+      expect.objectContaining({
+        name: "symfony/console",
+        licenseExpression: "MIT",
+        warnings: [],
+      }),
+    ]);
+  });
 });

@@ -177,16 +177,77 @@ function collectLegacyLicenseValues(parsedPackageJson: unknown): string[] {
   return legacyValues.filter((license) => license.trim() !== "");
 }
 
-async function resolveLicenseFromInstalledPackage(
+function normalizeRepositoryFromPackageJson(parsedPackageJson: unknown): string | undefined {
+  if (!parsedPackageJson || typeof parsedPackageJson !== "object") {
+    return undefined;
+  }
+
+  const packageJson = parsedPackageJson as {
+    repository?: unknown;
+  };
+
+  if (typeof packageJson.repository === "string") {
+    return packageJson.repository;
+  }
+
+  if (
+    packageJson.repository &&
+    typeof packageJson.repository === "object" &&
+    "url" in packageJson.repository &&
+    typeof packageJson.repository.url === "string" &&
+    packageJson.repository.url.trim() !== ""
+  ) {
+    return packageJson.repository.url;
+  }
+
+  return undefined;
+}
+
+function normalizeAuthorFromPackageJson(parsedPackageJson: unknown): string | undefined {
+  if (!parsedPackageJson || typeof parsedPackageJson !== "object") {
+    return undefined;
+  }
+
+  const packageJson = parsedPackageJson as {
+    author?: unknown;
+  };
+
+  if (typeof packageJson.author === "string") {
+    return packageJson.author;
+  }
+
+  if (
+    packageJson.author &&
+    typeof packageJson.author === "object" &&
+    "name" in packageJson.author &&
+    typeof packageJson.author.name === "string" &&
+    packageJson.author.name.trim() !== ""
+  ) {
+    return packageJson.author.name;
+  }
+
+  return undefined;
+}
+
+async function resolveMetadataFromInstalledPackage(
   projectRoot: string,
   packagePath: string,
 ): Promise<{
   licenseExpression?: string;
   licenseWarnings: Warning[];
+  homepage?: string;
+  repository?: string;
+  author?: string;
 }> {
   const packageJsonPath = join(projectRoot, packagePath, "package.json");
   if (!(await fileExists(packageJsonPath))) {
-    return { licenseExpression: undefined, licenseWarnings: [] };
+    return {
+      licenseExpression: undefined,
+      licenseWarnings: [],
+      homepage: undefined,
+      repository: undefined,
+      author: undefined,
+    };
   }
 
   let parsedPackageJson: unknown;
@@ -194,12 +255,36 @@ async function resolveLicenseFromInstalledPackage(
   try {
     parsedPackageJson = JSON.parse(await readFile(packageJsonPath, "utf8"));
   } catch {
-    return { licenseExpression: undefined, licenseWarnings: [] };
+    return {
+      licenseExpression: undefined,
+      licenseWarnings: [],
+      homepage: undefined,
+      repository: undefined,
+      author: undefined,
+    };
   }
 
   const licenseValues = collectLegacyLicenseValues(parsedPackageJson);
+  const homepage =
+    parsedPackageJson &&
+    typeof parsedPackageJson === "object" &&
+    "homepage" in parsedPackageJson &&
+    typeof parsedPackageJson.homepage === "string" &&
+    parsedPackageJson.homepage.trim() !== ""
+      ? parsedPackageJson.homepage
+      : undefined;
+
+  const repository = normalizeRepositoryFromPackageJson(parsedPackageJson);
+  const author = normalizeAuthorFromPackageJson(parsedPackageJson);
+
   if (licenseValues.length === 0) {
-    return { licenseExpression: undefined, licenseWarnings: [] };
+    return {
+      licenseExpression: undefined,
+      licenseWarnings: [],
+      homepage,
+      repository,
+      author,
+    };
   }
 
   const singleLicenseValue = licenseValues[0];
@@ -211,6 +296,9 @@ async function resolveLicenseFromInstalledPackage(
   return {
     licenseExpression: normalized.normalizedExpression,
     licenseWarnings: normalized.warnings,
+    homepage,
+    repository,
+    author,
   };
 }
 
@@ -271,13 +359,35 @@ export async function resolveNpmProject(
     parsedLock.packages.map(async (pkg) => {
       const dependencyWarnings: Warning[] = [];
       let licenseExpression = pkg.licenseExpression;
+      let homepage = pkg.homepage;
+      let repository = pkg.repository;
+      let author = pkg.author;
 
-      const fallbackLicense = !licenseExpression
-        ? await resolveLicenseFromInstalledPackage(projectRoot, pkg.packagePath)
-        : { licenseExpression: undefined, licenseWarnings: [] };
+      const fallbackMetadata =
+        !licenseExpression || !homepage || !repository || !author
+          ? await resolveMetadataFromInstalledPackage(projectRoot, pkg.packagePath)
+          : {
+              licenseExpression: undefined,
+              licenseWarnings: [],
+              homepage: undefined,
+              repository: undefined,
+              author: undefined,
+            };
 
-      if (!licenseExpression && fallbackLicense.licenseExpression) {
-        licenseExpression = fallbackLicense.licenseExpression;
+      if (!licenseExpression && fallbackMetadata.licenseExpression) {
+        licenseExpression = fallbackMetadata.licenseExpression;
+      }
+
+      if (!homepage && fallbackMetadata.homepage) {
+        homepage = fallbackMetadata.homepage;
+      }
+
+      if (!repository && fallbackMetadata.repository) {
+        repository = fallbackMetadata.repository;
+      }
+
+      if (!author && fallbackMetadata.author) {
+        author = fallbackMetadata.author;
       }
 
       if (!licenseExpression) {
@@ -289,7 +399,7 @@ export async function resolveNpmProject(
         );
       }
 
-      for (const warning of [...pkg.licenseWarnings, ...fallbackLicense.licenseWarnings]) {
+      for (const warning of [...pkg.licenseWarnings, ...fallbackMetadata.licenseWarnings]) {
         if (options.includeLicenseText && warning.code === WARNING_CODES.licenseFileReference) {
           continue;
         }
@@ -317,9 +427,9 @@ export async function resolveNpmProject(
         version: pkg.version,
         direct: directDependencyNames.has(pkg.name),
         licenseExpression,
-        homepage: pkg.homepage,
-        repository: pkg.repository,
-        author: pkg.author,
+        homepage,
+        repository,
+        author,
         licenseText: bundledLicense.licenseText,
         licenseSourcePath: bundledLicense.licenseSourcePath,
         warnings: dependencyWarnings,

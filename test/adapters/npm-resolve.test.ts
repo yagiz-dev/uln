@@ -266,6 +266,71 @@ describe("resolveNpmProject", () => {
     }
   });
 
+  it("falls back to installed package metadata when lockfile fields are missing", async () => {
+    const projectRoot = await mkdtemp(join(tmpdir(), "uln-npm-package-metadata-"));
+
+    try {
+      await writeFile(
+        join(projectRoot, "package-lock.json"),
+        JSON.stringify(
+          {
+            lockfileVersion: 3,
+            packages: {
+              "": {
+                name: "fixture",
+                version: "1.0.0",
+              },
+              "node_modules/metadata-package": {
+                version: "1.2.3",
+                license: "MIT",
+              },
+            },
+          },
+          null,
+          2,
+        ),
+        "utf8",
+      );
+      await mkdir(join(projectRoot, "node_modules", "metadata-package"), {
+        recursive: true,
+      });
+      await writeFile(
+        join(projectRoot, "node_modules", "metadata-package", "package.json"),
+        JSON.stringify(
+          {
+            name: "metadata-package",
+            version: "1.2.3",
+            homepage: "https://example.com/metadata-package",
+            repository: {
+              type: "git",
+              url: "https://github.com/example/metadata-package",
+            },
+            author: {
+              name: "Example Maintainer",
+            },
+          },
+          null,
+          2,
+        ),
+        { encoding: "utf8", flag: "w" },
+      );
+
+      const result = await resolveNpmProject(projectRoot);
+      const dependency = result.dependencies[0];
+
+      expect(dependency).toEqual(
+        expect.objectContaining({
+          name: "metadata-package",
+          homepage: "https://example.com/metadata-package",
+          repository: "https://github.com/example/metadata-package",
+          author: "Example Maintainer",
+        }),
+      );
+    } finally {
+      await rm(projectRoot, { recursive: true, force: true });
+    }
+  });
+
   it("skips bundling when --dont-include-license-text is enabled", async () => {
     const projectRoot = await mkdtemp(join(tmpdir(), "uln-npm-license-text-"));
 

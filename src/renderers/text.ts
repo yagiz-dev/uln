@@ -16,6 +16,13 @@ function renderDependencyBlock(result: ScanResult): string {
       `Repository: ${dependency.repository ?? "Unknown"}`,
       `Homepage: ${dependency.homepage ?? "Unknown"}`,
       `Author: ${dependency.author ?? "Unknown"}`,
+      ...(dependency.licenseText
+        ? [
+            `License file: ${dependency.licenseSourcePath ?? "Unknown"}`,
+            "License text:",
+            dependency.licenseText,
+          ]
+        : []),
     ]),
   ].join("\n");
 }
@@ -31,9 +38,7 @@ function renderWarnings(result: ScanResult): string {
   const warnings = [
     ...result.warnings.map((warning) => `- ${warning.message}`),
     ...result.dependencies.flatMap((dependency) =>
-      dependency.warnings.map(
-        (warning) => `- ${dependency.name}: ${warning.message}`,
-      ),
+      dependency.warnings.map((warning) => `- ${dependency.name}: ${warning.message}`),
     ),
   ];
 
@@ -46,8 +51,6 @@ export function renderText(results: ScanResult[]): string {
   }
 
   return results
-    .map(
-      (result) => `${renderDependencyBlock(result)}${renderWarnings(result)}`,
-    )
+    .map((result) => `${renderDependencyBlock(result)}${renderWarnings(result)}`)
     .join("\n\n");
 }

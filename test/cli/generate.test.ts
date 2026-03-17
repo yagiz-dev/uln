@@ -1,5 +1,6 @@
 import { describe, expect, it } from "vitest";
 import {
+  shouldIncludeLicenseText,
   shouldWriteToStdout,
   validateGenerateCommandOptions,
 } from "../../src/cli/commands/generate.js";
@@ -10,17 +11,28 @@ describe("shouldWriteToStdout", () => {
   });
 
   it("returns false when writing to a file", () => {
-    expect(shouldWriteToStdout({ format: "json", output: "NOTICE.json" })).toBe(
-      false,
-    );
+    expect(shouldWriteToStdout({ format: "json", output: "NOTICE.json" })).toBe(false);
+  });
+});
+
+describe("shouldIncludeLicenseText", () => {
+  it("defaults to including bundled license text", () => {
+    expect(shouldIncludeLicenseText({ format: "text" })).toBe(true);
+  });
+
+  it("disables bundled license text when opted out", () => {
+    expect(
+      shouldIncludeLicenseText({
+        format: "text",
+        dontIncludeLicenseText: true,
+      }),
+    ).toBe(false);
   });
 });
 
 describe("validateGenerateCommandOptions", () => {
   it("allows stdout on its own", () => {
-    expect(() =>
-      validateGenerateCommandOptions({ format: "text", stdout: true }),
-    ).not.toThrow();
+    expect(() => validateGenerateCommandOptions({ format: "text", stdout: true })).not.toThrow();
   });
 
   it("rejects stdout and output together", () => {

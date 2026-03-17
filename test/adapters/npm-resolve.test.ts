@@ -1,4 +1,6 @@
-import { resolve } from "node:path";
+import { mkdir, mkdtemp, rm, writeFile } from "node:fs/promises";
+import { tmpdir } from "node:os";
+import { join, resolve } from "node:path";
 import { describe, expect, it } from "vitest";
 import { resolveNpmProject } from "../../src/adapters/npm/resolve.js";
 
@@ -47,9 +49,7 @@ describe("resolveNpmProject", () => {
     const apacheStyle = result.dependencies.find(
       (dependency) => dependency.name === "apache-style",
     );
-    const fileRef = result.dependencies.find(
-      (dependency) => dependency.name === "file-ref",
-    );
+    const fileRef = result.dependencies.find((dependency) => dependency.name === "file-ref");
 
     expect(apacheStyle?.licenseExpression).toBe("Apache-2.0");
     expect(apacheStyle?.warnings).toEqual([]);
@@ -100,5 +100,98 @@ describe("resolveNpmProject", () => {
         }),
       ]),
     );
+  });
+
+  it("bundles local license text by default when package files are available", async () => {
+    const projectRoot = await mkdtemp(join(tmpdir(), "uln-npm-license-text-"));
+
+    try {
+      await writeFile(
+        join(projectRoot, "package-lock.json"),
+        JSON.stringify(
+          {
+            lockfileVersion: 3,
+            packages: {
+              "": {
+                name: "fixture",
+                version: "1.0.0",
+              },
+              "node_modules/licenseful": {
+                version: "1.2.3",
+                license: "MIT",
+              },
+            },
+          },
+          null,
+          2,
+        ),
+        "utf8",
+      );
+      await mkdir(join(projectRoot, "node_modules", "licenseful"), {
+        recursive: true,
+      });
+      await writeFile(
+        join(projectRoot, "node_modules", "licenseful", "LICENSE"),
+        "MIT License\n\nCopyright 2026",
+        { encoding: "utf8", flag: "w" },
+      );
+
+      const result = await resolveNpmProject(projectRoot);
+
+      expect(result.dependencies[0]).toEqual(
+        expect.objectContaining({
+          name: "licenseful",
+          licenseText: "MIT License\n\nCopyright 2026",
+          licenseSourcePath: "node_modules/licenseful/LICENSE",
+        }),
+      );
+    } finally {
+      await rm(projectRoot, { recursive: true, force: true });
+    }
+  });
+
+  it("skips bundling when --dont-include-license-text is enabled", async () => {
+    const projectRoot = await mkdtemp(join(tmpdir(), "uln-npm-license-text-"));
+
+    try {
+      await writeFile(
+        join(projectRoot, "package-lock.json"),
+        JSON.stringify(
+          {
+            lockfileVersion: 3,
+            packages: {
+              "": {
+                name: "fixture",
+                version: "1.0.0",
+              },
+              "node_modules/licenseful": {
+                version: "1.2.3",
+                license: "MIT",
+              },
+            },
+          },
+          null,
+          2,
+        ),
+        "utf8",
+      );
+      await mkdir(join(projectRoot, "node_modules", "licenseful"), {
+        recursive: true,
+      });
+      await writeFile(
+        join(projectRoot, "node_modules", "licenseful", "LICENSE"),
+        "MIT License\n\nCopyright 2026",
+        { encoding: "utf8", flag: "w" },
+      );
+
+      const result = await resolveNpmProject(projectRoot, {
+        includeLicenseText: false,
+      });
+
+      expect(result.dependencies[0]?.licenseText).toBeUndefined();
+      expect(result.dependencies[0]?.licenseSourcePath).toBeUndefined();
+    } finally {
+      await rm(projectRoot, { recursive: true, force: true });
+    }
   });
 });

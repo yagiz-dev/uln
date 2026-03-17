@@ -20,7 +20,7 @@ Current scope:
 
 - scans project root only
 - metadata-based notice generation, no network lookups yet
-- no full license text bundling yet
+- bundles local dependency license files when available
 
 This tool is best-effort and is not legal advice.
 
@@ -79,6 +79,8 @@ uln generate
 - Text output defaults to `THIRD_PARTY_NOTICES.txt`
 - JSON output defaults to `NOTICE.json`
 - If you do not specify a format, text output is used by default.
+- Full dependency license text is included by default when local package license files are available.
+- Use `--dont-include-license-text` to disable license text bundling.
 
 Examples:
 
@@ -141,11 +143,14 @@ The text renderer includes:
 - whether the dependency is direct
 - license expression when available
 - repository, homepage, and author when available
+- bundled license file path and license text when available
 - warnings for missing or non-normalized license metadata
 
 ### JSON output
 
 The JSON renderer returns normalized dependency records and warnings suitable for later tooling or CI integration.
+
+When license text bundling is enabled (default), dependency records also include `licenseText` and `licenseSourcePath` when available.
 
 ## npm support
 

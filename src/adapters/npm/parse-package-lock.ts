@@ -3,31 +3,37 @@ import { z } from "zod";
 import { normalizeLicenseField } from "../../licenses/normalize.js";
 import { readJsonFile } from "../../utils/fs.js";
 
-const lockfilePackageSchema = z.object({
-  name: z.string().optional(),
-  version: z.string().optional(),
-  license: z.union([z.string(), z.array(z.string())]).optional(),
-  homepage: z.string().optional(),
-  dependencies: z.record(z.string()).optional(),
-  devDependencies: z.record(z.string()).optional(),
-  optionalDependencies: z.record(z.string()).optional(),
-  peerDependencies: z.record(z.string()).optional(),
-  repository: z.union([
-    z.string(),
-    z.object({
-      type: z.string().optional(),
-      url: z.string().optional(),
-    }),
-  ]).optional(),
-  author: z.union([
-    z.string(),
-    z.object({
-      name: z.string().optional(),
-      email: z.string().optional(),
-      url: z.string().optional(),
-    }),
-  ]).optional(),
-}).passthrough();
+const lockfilePackageSchema = z
+  .object({
+    name: z.string().optional(),
+    version: z.string().optional(),
+    license: z.union([z.string(), z.array(z.string())]).optional(),
+    homepage: z.string().optional(),
+    dependencies: z.record(z.string()).optional(),
+    devDependencies: z.record(z.string()).optional(),
+    optionalDependencies: z.record(z.string()).optional(),
+    peerDependencies: z.record(z.string()).optional(),
+    repository: z
+      .union([
+        z.string(),
+        z.object({
+          type: z.string().optional(),
+          url: z.string().optional(),
+        }),
+      ])
+      .optional(),
+    author: z
+      .union([
+        z.string(),
+        z.object({
+          name: z.string().optional(),
+          email: z.string().optional(),
+          url: z.string().optional(),
+        }),
+      ])
+      .optional(),
+  })
+  .passthrough();
 
 const packageLockSchema = z.object({
   lockfileVersion: z.number(),
@@ -36,12 +42,25 @@ const packageLockSchema = z.object({
 
 export interface ParsedLockPackage {
   name: string;
+  packagePath: string;
   version: string;
   licenseExpression?: string;
+  licenseFileHint?: string;
   licenseWarnings: string[];
   homepage?: string;
   repository?: string;
   author?: string;
+}
+
+function extractLicenseFileHint(
+  value: z.infer<typeof lockfilePackageSchema>["license"],
+): string | undefined {
+  if (typeof value !== "string") {
+    return undefined;
+  }
+
+  const match = /^SEE LICEN[CS]E IN\s+(.+)$/i.exec(value.trim());
+  return match?.[1]?.trim();
 }
 
 export interface ParsedPackageLock {
@@ -61,7 +80,9 @@ function packageNameFromPath(packagePath: string): string | undefined {
   return packageName === "" ? undefined : packageName;
 }
 
-function normalizeRepository(value: z.infer<typeof lockfilePackageSchema>["repository"]): string | undefined {
+function normalizeRepository(
+  value: z.infer<typeof lockfilePackageSchema>["repository"],
+): string | undefined {
   if (!value) {
     return undefined;
   }
@@ -73,7 +94,9 @@ function normalizeRepository(value: z.infer<typeof lockfilePackageSchema>["repos
   return value.url;
 }
 
-function normalizeAuthor(value: z.infer<typeof lockfilePackageSchema>["author"]): string | undefined {
+function normalizeAuthor(
+  value: z.infer<typeof lockfilePackageSchema>["author"],
+): string | undefined {
   if (!value) {
     return undefined;
   }
@@ -135,16 +158,25 @@ export async function parsePackageLock(projectRoot: string): Promise<ParsedPacka
       }
 
       const normalizedLicense = normalizeLicense(lockPackage.license);
+      const licenseFileHint = extractLicenseFileHint(lockPackage.license);
+      const repository = normalizeRepository(lockPackage.repository);
+      const author = normalizeAuthor(lockPackage.author);
 
-      return {
+      const parsedPackage: ParsedLockPackage = {
         name,
+        packagePath,
         version: lockPackage.version,
-        licenseExpression: normalizedLicense.licenseExpression,
         licenseWarnings: normalizedLicense.licenseWarnings,
-        homepage: lockPackage.homepage,
-        repository: normalizeRepository(lockPackage.repository),
-        author: normalizeAuthor(lockPackage.author),
-      } satisfies ParsedLockPackage;
+        ...(normalizedLicense.licenseExpression
+          ? { licenseExpression: normalizedLicense.licenseExpression }
+          : {}),
+        ...(licenseFileHint ? { licenseFileHint } : {}),
+        ...(lockPackage.homepage ? { homepage: lockPackage.homepage } : {}),
+        ...(repository ? { repository } : {}),
+        ...(author ? { author } : {}),
+      };
+
+      return parsedPackage;
     })
     .filter((entry): entry is ParsedLockPackage => entry !== undefined);
 

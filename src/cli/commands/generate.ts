@@ -10,6 +10,7 @@ type OutputFormat = "text" | "json";
 
 export interface GenerateCommandOptions {
   config?: string;
+  dontIncludeLicenseText?: boolean;
   format: string;
   output?: string;
   stdout?: boolean;
@@ -23,9 +24,13 @@ export function shouldWriteToStdout(options: GenerateCommandOptions): boolean {
   return options.stdout === true;
 }
 
+export function shouldIncludeLicenseText(options: GenerateCommandOptions): boolean {
+  return options.dontIncludeLicenseText !== true;
+}
+
 export function validateGenerateCommandOptions(options: GenerateCommandOptions): void {
   if (options.format !== "text" && options.format !== "json") {
-    throw new Error(`Unsupported output format \"${options.format}\". Use \"text\" or \"json\".`);
+    throw new Error(`Unsupported output format "${options.format}". Use "text" or "json".`);
   }
 
   if (options.stdout && options.output) {
@@ -40,13 +45,17 @@ export function registerGenerateCommand(program: Command): void {
     .option("--format <format>", "Output format: text or json", "text")
     .option("--output <path>", "Write output to the given path")
     .option("--config <path>", "Load configuration from the given JSON file")
+    .option("--dont-include-license-text", "Skip bundling full license text for dependencies")
     .option("--stdout", "Write generated notice output to stdout instead of a file")
     .action(async (options: GenerateCommandOptions) => {
       validateGenerateCommandOptions(options);
       const format = options.format as OutputFormat;
       const loadedConfig = await loadProjectConfig(cwd(), options.config);
+      const includeLicenseText = shouldIncludeLicenseText(options);
 
-      const results = await resolveDependencies(cwd(), loadedConfig.config);
+      const results = await resolveDependencies(cwd(), loadedConfig.config, {
+        includeLicenseText,
+      });
       const output = format === "json" ? renderJson(results) : renderText(results);
 
       if (shouldWriteToStdout(options)) {

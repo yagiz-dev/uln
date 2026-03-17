@@ -12,6 +12,8 @@ export interface NormalizedDependency {
   version: string;
   direct: boolean;
   licenseExpression?: string;
+  licenseText?: string;
+  licenseSourcePath?: string;
   homepage?: string;
   repository?: string;
   author?: string;
